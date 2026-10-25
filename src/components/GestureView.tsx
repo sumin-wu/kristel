@@ -19,6 +19,7 @@ import { settingsStore } from "@/lib/settingsStore";
 import { CameraError, startHandTracking, type Handedness } from "@/vision/handTracker";
 import { GestureSession, HAND_COLORS, type CalibrationPhase, type SessionStats } from "./gestureSession";
 import { GuideOverlay } from "./GuideOverlay";
+import { LyricsPanel } from "./LyricsPanel";
 import { SettingsDrawer } from "./SettingsDrawer";
 
 type Status = { kind: "idle" } | { kind: "starting" } | { kind: "running" } | { kind: "error"; message: string };
@@ -299,6 +300,8 @@ export function GestureView() {
           </button>
         </div>
       )}
+
+      {running && <LyricsPanel />}
 
       <SettingsDrawer
         open={drawerOpen}

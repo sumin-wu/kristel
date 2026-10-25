@@ -22,6 +22,10 @@ Touchscreen guitar synth for a guitarist playing with her fingers on a phone/tab
 - Continuous gestures (lerp 0.15), reassignable in Settings: right-hand height →
   filter, right-hand roll → bend, hand distance → reverb, left-hand openness → distortion.
 - Settings persist to localStorage (`src/lib/settingsStore.ts`).
+- Right-hand fingertips show the chord each pinch plays; played chords float up
+  from the fingertip (drawn on the mirrored canvas, so text is flipped back).
+- Lyrics drawer (`LyricsPanel`, `src/lib/lyrics.ts`): LRCLIB API, synced LRC with
+  a play clock and karaoke strip; never hardcode lyrics in the repo.
 - First visit shows a guide (Start/Skip, once; `guideSeen`): gestures, then the
   chord roots of girl in red's "we fell in love in october" (Cmaj7 Gmaj7 C G D,
   in G major); each correct pinch strums the full chord.

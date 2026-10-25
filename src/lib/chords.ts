@@ -68,3 +68,13 @@ export function strumVoicing(rootPc: number, { third, fifth }: { third: number; 
   const b = 45 + ((((rootPc - 9) % 12) + 12) % 12); // A-shape barre on the A string
   return [b, b + fifth, b + 12, b + 12 + third, b + 12 + fifth].map((m) => m + shift);
 }
+
+const PITCH_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+/** A short chord name for a triad on `rootPc`: "G", "Am", "B°", "C+". */
+export function chordLabel(rootPc: number, { third, fifth }: { third: number; fifth: number }): string {
+  const root = PITCH_NAMES[((rootPc % 12) + 12) % 12];
+  if (third === 3 && fifth === 6) return `${root}°`;
+  if (third === 4 && fifth === 8) return `${root}+`;
+  return third === 3 ? `${root}m` : root;
+}

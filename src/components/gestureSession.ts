@@ -21,11 +21,12 @@ import {
   HysteresisPinch,
   LeadController,
   RightHandNotes,
+  degreeToMidi,
   octaveFor,
   type PinchFrame,
 } from "@/lib/gesture";
 import type { GuideEvent } from "@/lib/guide";
-import { diatonicTriad, strumVoicing } from "@/lib/chords";
+import { chordLabel, diatonicTriad, strumVoicing } from "@/lib/chords";
 import { pinchRatios } from "@/lib/pinch";
 import { noteName } from "@/lib/pitch";
 import { pinchThresholds, type PinchThresholds } from "@/lib/settings";
@@ -39,6 +40,7 @@ const FINGER_TIPS = [8, 12, 16, 20];
 const THUMB_TIP = 4;
 const PALM = [0, 5, 9, 13, 17];
 const FLASH_MS = 320;
+const FLOAT_MS = 1400;
 const STATS_INTERVAL_MS = 200;
 
 export type CalibrationPhase = "open" | "pinch";
@@ -74,6 +76,33 @@ interface Flash {
   start: number;
 }
 
+/** A chord name drifting up from where it was played (canvas pixels). */
+interface FloatingNote {
+  text: string;
+  x: number;
+  y: number;
+  start: number;
+}
+
+/** Draw text that reads correctly on the mirrored canvas. */
+function mirroredText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number): void {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(-1, 1);
+  ctx.fillText(text, 0, 0);
+  ctx.restore();
+}
+
+function roundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
 function palmCenter(hand: TrackedHand): { x: number; y: number } {
   let x = 0;
   let y = 0;
@@ -100,6 +129,7 @@ export class GestureSession {
     pinchX: new Smoothed(0.5),
   };
   private flashes: Flash[] = [];
+  private floating: FloatingNote[] = [];
   private rollRef: number | null = null;
   private holding = false;
   private leadMuted = false;
@@ -195,6 +225,20 @@ export class GestureSession {
       const voicing = strumVoicing(pc, diatonicTriad(pc, settings.scale, settings.key), this.octave - 3);
       synth?.strum(voicing, velocity, 0.06 - 0.03 * velocity);
     };
+    /** Float the chord name up from the fingertip(s) that played it. */
+    const float = (midi: number, fingers: readonly number[]) => {
+      if (!right) return;
+      const pc = midi % 12;
+      const tips = fingers.length ? fingers.map((f) => FINGER_TIPS[f]) : [THUMB_TIP];
+      const x = tips.reduce((sum, t) => sum + right.image[t].x, 0) / tips.length;
+      const y = tips.reduce((sum, t) => sum + right.image[t].y, 0) / tips.length;
+      this.floating.push({
+        text: chordLabel(pc, diatonicTriad(pc, settings.scale, settings.key)),
+        x: x * this.canvas.width,
+        y: y * this.canvas.height,
+        start: time,
+      });
+    };
     for (const action of actions) {
       if (action.type === "on") {
         this.rollRef = roll;
@@ -205,6 +249,7 @@ export class GestureSession {
           this.latencyMs = this.latencyMs === null ? latency : this.latencyMs * 0.7 + latency * 0.3;
         }
         this.announce(action.midi);
+        float(action.midi, triggers.at(-1)?.fingers ?? []);
         this.cb.onPlay({
           type: "note",
           degree: triggers.at(-1)?.degree ?? 1,
@@ -215,6 +260,8 @@ export class GestureSession {
       } else if (action.type === "glide") {
         if (!this.leadMuted) strum(action.midi, 0.6);
         this.announce(action.midi);
+        float(action.midi, []);
+        float(action.midi, triggers.at(-1)?.fingers ?? []);
         this.cb.onPlay({ type: "glide" });
       } else {
         // Strummed chords ring out on their own, like letting go of a real guitar.
@@ -385,6 +432,71 @@ export class GestureSession {
       }
     }
     this.flashes = this.flashes.filter((f) => time - f.start < FLASH_MS);
+
+    if (right) this.drawFingerLabels(ctx, right, pinched.Right, settings, r);
+    this.drawFloating(ctx, time, w);
+  }
+
+  /** Small chord names above each right-hand fingertip: what that pinch will play. */
+  private drawFingerLabels(
+    ctx: CanvasRenderingContext2D,
+    hand: TrackedHand,
+    pinched: readonly boolean[] | null,
+    settings: ReturnType<typeof settingsStore.get>,
+    r: number,
+  ): void {
+    const { width: w, height: h } = this.canvas;
+    const size = Math.max(12, w / 70);
+    ctx.save();
+    ctx.font = `700 ${size}px system-ui, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    FINGER_TIPS.forEach((tip, f) => {
+      const pc = degreeToMidi(f + 1, this.octave, settings.scale, settings.key) % 12;
+      const text = chordLabel(pc, diatonicTriad(pc, settings.scale, settings.key));
+      const x = hand.image[tip].x * w;
+      const y = hand.image[tip].y * h - r * 4.5;
+      const on = !!pinched?.[f];
+      const bw = ctx.measureText(text).width + size * 0.9;
+      const bh = size * 1.5;
+      ctx.globalAlpha = on ? 1 : 0.8;
+      ctx.fillStyle = on ? "#fff" : "rgba(7, 8, 10, 0.72)";
+      roundedRect(ctx, x - bw / 2, y - bh / 2, bw, bh, bh / 2);
+      ctx.fill();
+      ctx.fillStyle = on ? HAND_COLORS.Right : "#fff";
+      mirroredText(ctx, text, x, y + 1);
+    });
+    ctx.restore();
+  }
+
+  /** Chord names drifting up and fading out from where they were played. */
+  private drawFloating(ctx: CanvasRenderingContext2D, time: number, w: number): void {
+    this.floating = this.floating.filter((n) => time - n.start < FLOAT_MS);
+    const size = Math.max(28, w / 22);
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (const n of this.floating) {
+      const t = (time - n.start) / FLOAT_MS;
+      const ease = 1 - (1 - t) * (1 - t);
+      const scale = t < 0.12 ? 0.6 + (t / 0.12) * 0.6 : 1.2 - 0.2 * Math.min(1, (t - 0.12) / 0.3);
+      ctx.globalAlpha = t < 0.7 ? 1 : 1 - (t - 0.7) / 0.3;
+      ctx.font = `800 ${size * scale}px system-ui, sans-serif`;
+      ctx.lineWidth = size * 0.12;
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.75)";
+      ctx.shadowColor = HAND_COLORS.Right;
+      ctx.shadowBlur = 24;
+      const x = n.x + Math.sin(t * Math.PI * 2) * size * 0.15;
+      const y = n.y - size * 0.8 - ease * size * 4;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(-1, 1);
+      ctx.strokeText(n.text, 0, 0);
+      ctx.fillStyle = "#fff";
+      ctx.fillText(n.text, 0, 0);
+      ctx.restore();
+    }
+    ctx.restore();
   }
 
   private updateHud(): void {

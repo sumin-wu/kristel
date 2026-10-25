@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chordNotes, chordStrings, diatonicTriad, strumVoicing, type ChordName } from "./chords";
+import { chordLabel, chordNotes, chordStrings, diatonicTriad, strumVoicing, type ChordName } from "./chords";
 import { noteName } from "./pitch";
 
 const pitchClasses = (name: ChordName) => [...new Set(chordNotes(name).map((m) => noteName(m, { octave: false })))].sort();
@@ -80,5 +80,22 @@ describe("Bm into Cm (landing page)", () => {
 
   it("Cm is the same shape one fret up", () => {
     expect(chordNotes("Cm")).toEqual(chordNotes("Bm").map((m) => m + 1));
+  });
+});
+
+describe("chordLabel", () => {
+  it("names the diatonic chords of E minor pentatonic", () => {
+    expect([4, 7, 9, 11, 2].map((pc) => chordLabel(pc, diatonicTriad(pc, "minorPentatonic", 4)))).toEqual([
+      "Em",
+      "G",
+      "Am",
+      "Bm",
+      "D",
+    ]);
+  });
+
+  it("marks diminished and augmented chords", () => {
+    expect(chordLabel(6, diatonicTriad(6, "major", 7))).toBe("F#°");
+    expect(chordLabel(0, { third: 4, fifth: 8 })).toBe("C+");
   });
 });
