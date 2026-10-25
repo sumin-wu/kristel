@@ -17,7 +17,8 @@ export interface Rect {
 }
 
 export interface SurfaceLayout {
-  board: Rect;
+  /** Touch fretboard; omit when frets come from elsewhere (e.g. the camera). */
+  board?: Rect;
   strips: Rect;
   strings: number;
   cols: number;
@@ -34,7 +35,7 @@ function rowToString(y: number, r: Rect, strings: number): number {
 
 export function hitTest(x: number, y: number, layout: SurfaceLayout): Target | null {
   const { board, strips, strings, cols } = layout;
-  if (inside(x, y, board)) {
+  if (board && inside(x, y, board)) {
     const col = Math.min(cols - 1, Math.floor(((x - board.left) / board.width) * cols));
     return { kind: "fret", string: rowToString(y, board, strings), col };
   }

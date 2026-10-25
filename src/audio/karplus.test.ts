@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { midiToHz } from "@/lib/pitch";
-import { renderPluck } from "./karplus";
+import { renderPluck, renderSustain } from "./karplus";
 
 const FS = 48000;
 
@@ -82,5 +82,37 @@ describe("renderPluck", () => {
     const hard = renderPluck(196, FS, { velocity: 0.9, random: seeded(5) });
     expect(peak(hard)).toBeGreaterThan(peak(soft) * 2);
     expect(peak(hard)).toBeLessThan(1);
+  });
+});
+
+describe("renderSustain", () => {
+  it.each([
+    ["E2", 40],
+    ["G5", 79],
+  ])("%s holds pitch within 5 cents", (_, midi) => {
+    const hz = midiToHz(midi);
+    const { data } = renderSustain(hz, FS, { random: seeded(6) });
+    expect(Math.abs(cents(detectHz(data, hz), hz))).toBeLessThan(5);
+  });
+
+  it.each([40, 55, 79])("midi %i is loud and steady by the loop region", (midi) => {
+    const { data, loopStart } = renderSustain(midiToHz(midi), FS, { random: seeded(7) });
+    const len = data.length - loopStart;
+    const early = rms(data, Math.round(0.3 * FS), Math.round(0.4 * FS));
+    const before = rms(data, loopStart - len, loopStart);
+    const loop = rms(data, loopStart, data.length);
+    expect(20 * Math.log10(loop / early)).toBeGreaterThan(-10);
+    // Repeating the loop must not audibly pump: adjacent windows within 0.5 dB.
+    expect(Math.abs(20 * Math.log10(loop / before))).toBeLessThan(0.5);
+  });
+
+  it.each([40, 59, 79])("midi %i loops without a click at the seam", (midi) => {
+    const { data, loopStart, loopEnd } = renderSustain(midiToHz(midi), FS, { random: seeded(8) });
+    expect(loopEnd).toBe(data.length);
+    expect(loopEnd - loopStart).toBeGreaterThan(0.04 * FS);
+    let maxStep = 0;
+    for (let i = loopStart + 1; i < loopEnd; i++) maxStep = Math.max(maxStep, Math.abs(data[i] - data[i - 1]));
+    const seam = Math.abs(data[loopStart] - data[loopEnd - 1]);
+    expect(seam).toBeLessThanOrEqual(maxStep * 1.1);
   });
 });

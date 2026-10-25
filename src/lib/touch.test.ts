@@ -27,6 +27,12 @@ describe("hitTest", () => {
     expect(hitTest(999, 299, layout)).toEqual(strip(0));
   });
 
+  it("hits only strips when there is no touch fretboard", () => {
+    const stripsOnly = { strips: layout.strips, strings: 6, cols: 4 };
+    expect(hitTest(10, 10, stripsOnly)).toBeNull();
+    expect(hitTest(800, 10, stripsOnly)).toEqual(strip(5));
+  });
+
   it("returns null outside the surface", () => {
     expect(hitTest(1001, 10, layout)).toBeNull();
     expect(hitTest(10, 301, layout)).toBeNull();
