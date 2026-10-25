@@ -29,6 +29,13 @@ Touchscreen guitar synth for a guitarist playing with her fingers on a phone/tab
   from the fingertip (drawn on the mirrored canvas, so text is flipped back).
 - Lyrics drawer (`LyricsPanel`, `src/lib/lyrics.ts`): LRCLIB API, synced LRC with
   a play clock and karaoke strip; never hardcode lyrics in the repo.
+- Chords with lyrics (`src/lib/chordTrack.ts`): one chord per lyric line, saved per
+  song in localStorage; "Fill lines" cycles a progression. The karaoke strip shows
+  the current chord, its finger combo in the active set, and the next change.
+  The lyrics clock has a playback speed (50–150%).
+- Chord play-along (`ChordPlayer`, `src/lib/chordPlayer.ts`): a looping progression
+  at a BPM with beats per chord, beat dots and an optional metronome click; changing
+  tempo keeps your place. Lyrics and Chords share the left side (one open at a time).
 - First visit shows a guide (Start/Skip, once; `guideSeen`): gestures, then the
   chord roots of girl in red's "we fell in love in october" (Cmaj7 Gmaj7 C G D,
   in G major); each correct pinch strums the full chord.

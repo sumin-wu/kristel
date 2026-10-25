@@ -1643,3 +1643,300 @@ body {
   color: #e8eaee;
   font-size: 12px;
 }
+
+/* ---------- Chords with lyrics ---------- */
+
+.chords-fill {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.chords-fill input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #16181c;
+  color: #e8eaee;
+  font-size: 13px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.chords-fill button {
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: #e8eaee;
+  color: #07080a;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chords-fill button.quiet {
+  background: transparent;
+  color: #e8eaee;
+}
+
+.chords-fill button:disabled {
+  opacity: 0.4;
+}
+
+.lyrics-lines li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.line-chord {
+  flex: 0 0 auto;
+  width: 64px;
+  padding: 2px 4px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 45, 75, 0.5);
+  background: rgba(255, 45, 75, 0.14);
+  color: #ffd0d6;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.line-chord.empty {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.lyrics-lines li.active .line-chord {
+  background: #ff2d4b;
+  border-color: #ff2d4b;
+  color: #fff;
+}
+
+.karaoke-chord {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.karaoke-chord-name {
+  padding: 2px 16px;
+  border-radius: 10px;
+  background: #ff2d4b;
+  color: #fff;
+  font-size: clamp(26px, 4.6vmin, 46px);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 20px rgba(255, 45, 75, 0.45);
+  animation: chord-pop 280ms ease-out;
+}
+
+.karaoke-chord-hint {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+}
+
+@keyframes chord-pop {
+  from {
+    transform: scale(1.25);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* ---------- Chord play-along ---------- */
+
+.chords-toggle {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  right: calc(222px + env(safe-area-inset-right));
+  z-index: 3;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(7, 8, 10, 0.7);
+  color: #e8eaee;
+  font-size: 13px;
+  backdrop-filter: blur(8px);
+}
+
+.chords-toggle.open {
+  right: auto;
+  left: calc(min(360px, 88vw) + 12px);
+}
+
+.chords-drawer .lyrics-controls {
+  margin-top: 12px;
+}
+
+.chords-drawer .lyrics-controls button:disabled {
+  opacity: 0.4;
+}
+
+.chords-click {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-size: 13px;
+}
+
+.chords-click input,
+.chords-tempo input[type="range"] {
+  accent-color: #ff2d4b;
+}
+
+.chords-tempo {
+  margin-top: 16px;
+  font-size: 13px;
+}
+
+.chords-tempo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chords-tempo-row input {
+  flex: 1;
+}
+
+.chords-tempo-row button {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: transparent;
+  color: #e8eaee;
+  font-size: 18px;
+}
+
+.chords-beats-setting {
+  margin-top: 14px;
+  font-size: 13px;
+}
+
+.chords-beats-setting > span {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.chords-list {
+  flex: 1;
+  min-height: 0;
+  margin-top: 14px;
+  overflow-y: auto;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 6px;
+  align-content: start;
+}
+
+.chords-list button {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: #e8eaee;
+}
+
+.chords-list strong {
+  font-size: 18px;
+}
+
+.chords-list small {
+  font-size: 10px;
+  opacity: 0.6;
+  text-align: center;
+}
+
+.chords-list li.active button {
+  background: #ff2d4b;
+  border-color: #ff2d4b;
+}
+
+.chords-list li.active small {
+  opacity: 0.9;
+}
+
+.lyrics-speed {
+  padding: 6px 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: #16181c;
+  color: #e8eaee;
+  font-size: 12px;
+}
+
+.chord-strip {
+  position: absolute;
+  top: calc(60px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.chord-strip-name {
+  padding: 2px 18px;
+  border-radius: 12px;
+  background: #ff2d4b;
+  color: #fff;
+  font-size: clamp(30px, 5.4vmin, 54px);
+  font-weight: 900;
+  box-shadow: 0 4px 20px rgba(255, 45, 75, 0.45);
+  animation: chord-pop 280ms ease-out;
+}
+
+.chord-strip-hint {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+}
+
+.chord-beats {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.chord-beats i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.chord-beats i.past {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.chord-beats i.on {
+  background: #fff;
+  transform: scale(1.3);
+}
+
+/* Both strips at once: lyrics sit under the chord play-along. */
+.gesture:has(.chord-strip) .karaoke {
+  top: calc(200px + env(safe-area-inset-top));
+}

@@ -47,6 +47,7 @@ export class GuitarSynth {
   private readonly tone;
   private readonly reverb;
   private readonly master;
+  private readonly clicker;
   private ampVoice: AmpVoice = AMPS.teleClean;
   private preset: Preset = "teleClean";
   private drive = -1;
@@ -57,6 +58,12 @@ export class GuitarSynth {
 
     const limiter = new Tone.Limiter(-1).toDestination();
     this.master = new Tone.Gain(1).connect(limiter);
+    // Metronome: a short dry tick straight to the output (no amp or reverb).
+    this.clicker = new Tone.Synth({
+      oscillator: { type: "square" },
+      envelope: { attack: 0.001, decay: 0.03, sustain: 0, release: 0.01 },
+      volume: -20,
+    }).connect(limiter);
     this.reverb = new Tone.Reverb({ decay: 1.8, preDelay: 0.012, wet: 0.2 }).connect(this.master);
     this.tone = new Tone.Filter({ type: "lowpass", frequency: 8000, Q: 0.6 }).connect(this.reverb);
     this.output = new Tone.Gain(1).connect(this.tone);
@@ -109,6 +116,11 @@ export class GuitarSynth {
     midis.forEach((m, i) =>
       this.playString(m, velocity * (1 - i * 0.04), delay + i * spacing * (0.85 + Math.random() * 0.3), firstString + i),
     );
+  }
+
+  /** A metronome tick; `accent` for the first beat of a bar or chord. */
+  click(accent = false): void {
+    this.clicker.triggerAttackRelease(accent ? 1760 : 1175, 0.03, this.Tone.now(), accent ? 1 : 0.6);
   }
 
   /**

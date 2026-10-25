@@ -37,6 +37,16 @@ export interface ChordSet {
   chords: Partial<Record<SlotId, ChordName>>;
 }
 
+export const BEATS_PER_CHORD_OPTIONS = [1, 2, 4, 8] as const;
+
+export interface ChordPlayerSettings {
+  progression: string;
+  bpm: number;
+  beatsPerChord: (typeof BEATS_PER_CHORD_OPTIONS)[number];
+  /** Metronome click on every beat. */
+  click: boolean;
+}
+
 /** Not a fixed set: chords built from the key and scale (used by the guide). */
 export const SCALE_SET = "scale";
 
@@ -77,6 +87,8 @@ export interface Settings {
   chordSets: ChordSet[];
   /** Active set id, or SCALE_SET for key/scale chords. */
   activeSet: string;
+  /** The chord play-along: a looping progression at a tempo. */
+  chordPlayer: ChordPlayerSettings;
   /** The first-run guide has been finished or skipped. */
   guideSeen: boolean;
 }
@@ -84,6 +96,7 @@ export interface Settings {
 export const DEFAULT_THRESHOLDS: PinchThresholds = { start: 0.25, release: 0.35 };
 
 export const LIMITS = {
+  bpm: { min: 40, max: 200, step: 1 },
   pinchSensitivity: { min: 0.5, max: 1.5, step: 0.05 },
   bendRange: { min: 0.5, max: 4, step: 0.5 },
   glideMs: { min: 20, max: 400, step: 10 },
@@ -101,6 +114,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showDebug: true,
   chordSets: DEFAULT_CHORD_SETS.map((set) => ({ ...set, chords: { ...set.chords } })),
   activeSet: "tele9",
+  chordPlayer: { progression: "Cmaj7 Gmaj7 C G D", bpm: 90, beatsPerChord: 4, click: false },
   guideSeen: false,
 };
 
@@ -145,7 +159,7 @@ const oneOf = <T extends string>(v: unknown, options: Record<T, unknown>): v is 
 
 /** Merge anything (e.g. parsed localStorage JSON) over the defaults, keeping only valid fields. */
 export function parseSettings(raw: unknown): Settings {
-  const s = { ...DEFAULT_SETTINGS, mapping: { ...DEFAULT_SETTINGS.mapping } };
+  const s = { ...DEFAULT_SETTINGS, mapping: { ...DEFAULT_SETTINGS.mapping }, chordPlayer: { ...DEFAULT_SETTINGS.chordPlayer } };
   if (typeof raw !== "object" || raw === null) return s;
   const r = raw as Record<string, unknown>;
 
@@ -181,6 +195,16 @@ export function parseSettings(raw: unknown): Settings {
   }
   if (typeof r.activeSet === "string" && (r.activeSet === SCALE_SET || s.chordSets.some((x) => x.id === r.activeSet))) {
     s.activeSet = r.activeSet;
+  }
+
+  if (typeof r.chordPlayer === "object" && r.chordPlayer !== null) {
+    const p = r.chordPlayer as Record<string, unknown>;
+    if (typeof p.progression === "string") s.chordPlayer.progression = p.progression.slice(0, 200);
+    if (isNum(p.bpm)) s.chordPlayer.bpm = Math.round(clamp(p.bpm, LIMITS.bpm));
+    if ((BEATS_PER_CHORD_OPTIONS as readonly unknown[]).includes(p.beatsPerChord)) {
+      s.chordPlayer.beatsPerChord = p.beatsPerChord as ChordPlayerSettings["beatsPerChord"];
+    }
+    if (typeof p.click === "boolean") s.chordPlayer.click = p.click;
   }
 
   const c = r.calibration as Record<string, unknown> | null | undefined;

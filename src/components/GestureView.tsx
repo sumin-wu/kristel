@@ -19,6 +19,7 @@ import { settingsStore } from "@/lib/settingsStore";
 import { CameraError, startHandTracking, type Handedness } from "@/vision/handTracker";
 import { GestureSession, HAND_COLORS, type CalibrationPhase, type SessionStats } from "./gestureSession";
 import { GuideOverlay } from "./GuideOverlay";
+import { ChordPlayer } from "./ChordPlayer";
 import { LyricsPanel } from "./LyricsPanel";
 import { SettingsDrawer } from "./SettingsDrawer";
 
@@ -55,6 +56,9 @@ export function GestureView() {
   const [calibration, setCalibration] = useState<{ phase: CalibrationPhase; progress: number } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  /** Left-side panel: only one of lyrics / chords open at a time. */
+  const [leftPanel, setLeftPanel] = useState<"lyrics" | "chords" | null>(null);
+  const toggleLeft = (panel: "lyrics" | "chords") => setLeftPanel((p) => (p === panel ? null : panel));
   const [guide, setGuide] = useState<GuideState | null>(null);
   const guideRef = useRef<GuideState | null>(null);
 
@@ -311,7 +315,12 @@ export function GestureView() {
         </div>
       )}
 
-      {running && <LyricsPanel />}
+      {running && (
+        <>
+          <LyricsPanel open={leftPanel === "lyrics"} onToggle={() => toggleLeft("lyrics")} />
+          <ChordPlayer open={leftPanel === "chords"} onToggle={() => toggleLeft("chords")} />
+        </>
+      )}
 
       <SettingsDrawer
         open={drawerOpen}
