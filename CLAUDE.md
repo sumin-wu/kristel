@@ -12,14 +12,14 @@ Touchscreen guitar synth for a guitarist playing with her fingers on a phone/tab
 
 ## Gesture synth mapping (/home)
 - Right hand plays chord sets (`src/lib/combos.ts`, Settings → Chord set): each
-  thumb + finger combo (13 slots) strums its assigned Telecaster chord.
-  Built-in sets: "Telecaster 9" (C Am A D G Em F Bm Cmaj7) and "Song" (G B C Cm);
+  thumb + finger combo (13 slots) strums its assigned chord.
+  Built-in sets: "Main 9" (C Am A D G Em F Bm Cmaj7) and "Song" (G B C Cm);
   "Scale" mode instead maps index…pinky = degrees 1–4, index+middle = 5 (the guide uses it).
 - Both fists clenched = stop all ringing strings (`FistDetector`, `muteAll()`). Pinch starts below 0.25 and releases above 0.35
   (or per-user calibrated thresholds, scaled by the sensitivity slider).
 - Left hand picks the octave: none = 3, index = 4, middle = 5.
-- Every sound is one Telecaster-style guitar (`src/audio/toneEngine.ts`, presets
-  Tele Clean / Twang / Crunch). A pinch-start strums the diatonic chord on that
+- Every sound is one acoustic guitar (`src/audio/toneEngine.ts`, presets
+  Acoustic Steel / Acoustic Bright / Nylon). A pinch-start strums the diatonic chord on that
   note (long strum, velocity from closing speed); sliding a held pinch strums the
   next chord along the scale; chords ring out on release.
 - Continuous gestures (lerp 0.15), reassignable in Settings: right-hand height →
@@ -63,7 +63,7 @@ Touchscreen guitar synth for a guitarist playing with her fingers on a phone/tab
 - src/audio/engine.ts: Web Audio engine, one voice per string. No React in here.
 - src/components/: UI components (CameraPanel, PluckStrips, TopBar, StrumIntro, GestureView, SettingsDrawer).
 - src/lib/gesture.ts, controls.ts, settings.ts, calibration.ts, strum.ts: pure gesture-synth logic. Unit tested.
-- src/audio/toneEngine.ts: Tone.js Telecaster (6 string voices → pickup EQ → vibrato → bend → amp → tone → reverb).
+- src/audio/toneEngine.ts: Tone.js acoustic guitar (6 string voices → body EQ → vibrato → bend → warmth → tone → room reverb).
 - src/components/gestureSession.ts: per-frame glue (hands → notes/params → audio, canvas, HUD). No React state per frame.
 - src/app/*/page.tsx: thin route files composing components.
 

@@ -246,7 +246,7 @@ export class GestureSession {
     };
 
     if (set) {
-      // Chord-set mode: each finger combo strums the Telecaster chord assigned to it.
+      // Chord-set mode: each finger combo strums the chord assigned to it.
       for (const combo of combos) {
         const chord = set.chords[combo.slot];
         if (!chord) continue;

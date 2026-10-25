@@ -7,8 +7,9 @@ const STORAGE_KEY = "gesture-synth.settings.v1";
 /**
  * Bumped when a default should reach people who already have saved settings.
  * 3: every voice is now a Telecaster; old voice names fall back to Tele Clean.
+ * 4: the guitar is acoustic; old voice names fall back to Acoustic Steel.
  */
-const DEFAULTS_VERSION = 3;
+const DEFAULTS_VERSION = 4;
 
 let current: Settings | null = null;
 const listeners = new Set<() => void>();

@@ -5,9 +5,9 @@ import { SLOTS, type SlotId } from "./combos";
 import { KEY_E, SCALES, type ScaleName } from "./gesture";
 
 export const PRESETS = {
-  teleClean: { label: "Tele Clean" },
-  teleTwang: { label: "Tele Twang" },
-  teleCrunch: { label: "Tele Crunch" },
+  acousticSteel: { label: "Acoustic Steel" },
+  acousticBright: { label: "Acoustic Bright" },
+  nylon: { label: "Nylon" },
 } as const;
 export type Preset = keyof typeof PRESETS;
 
@@ -53,7 +53,7 @@ export const SCALE_SET = "scale";
 export const DEFAULT_CHORD_SETS: readonly ChordSet[] = [
   {
     id: "tele9",
-    name: "Telecaster 9",
+    name: "Main 9",
     chords: { I: "C", M: "Am", R: "A", P: "D", IM: "G", MR: "Em", RP: "F", IMR: "Bm", MRP: "Cmaj7" },
   },
   {
@@ -103,7 +103,7 @@ export const LIMITS = {
 } as const;
 
 export const DEFAULT_SETTINGS: Settings = {
-  preset: "teleClean",
+  preset: "acousticSteel",
   scale: "minorPentatonic",
   key: KEY_E,
   pinchSensitivity: 1,

@@ -1,7 +1,7 @@
-// Tone.js Telecaster-style guitar. No React in here.
+// Tone.js acoustic guitar. No React in here.
 //
-//   6 string voices (Karplus-Strong) → pickup EQ (bridge single-coil) → vibrato → bend (pitch shift)
-//     → amp drive → compressor → tone (gesture lowpass) → spring-ish reverb → master → limiter → out
+//   6 string voices (Karplus-Strong) → body EQ (wood box + presence) → vibrato → bend (pitch shift)
+//     → warmth (gentle saturation) → compressor → tone (gesture lowpass) → room reverb → master → limiter → out
 //
 // Every sound in the app (landing strum, guide chords, pinches) goes through this one guitar.
 // Tone is loaded with a dynamic import so it never runs during server prerendering;
@@ -19,26 +19,59 @@ const STRINGS = 6;
 /** Seconds between strings in a strum: long and loose by default. */
 export const STRUM_SPACING = 0.045;
 
-interface AmpVoice {
-  /** Drive at rest, and at full gesture. */
+interface AcousticVoice {
+  /** Gentle saturation at rest and at full "drive" gesture (acoustics barely distort). */
   driveMin: number;
   driveMax: number;
-  /** Bridge-pickup bite around 3 kHz, in dB. */
-  twangDb: number;
-  /** Compressor threshold (lower = more squash/sustain). */
-  compThreshold: number;
+  /** Wooden-body resonance around 110 Hz, in dB. */
+  bodyDb: number;
+  /** Presence around 2.5 kHz, in dB. */
+  presenceDb: number;
+  /** String brightness (PluckSynth dampening, Hz) and ring length (resonance). */
+  dampening: number;
+  resonance: number;
+  /** Pick/finger noise at the attack. */
+  attackNoise: number;
   outputDb: number;
 }
 
-const AMPS: Record<Preset, AmpVoice> = {
-  teleClean: { driveMin: 0.02, driveMax: 0.3, twangDb: 5, compThreshold: -18, outputDb: 0 },
-  teleTwang: { driveMin: 0.08, driveMax: 0.4, twangDb: 8, compThreshold: -26, outputDb: -1 },
-  teleCrunch: { driveMin: 0.35, driveMax: 0.85, twangDb: 4, compThreshold: -20, outputDb: -5 },
+const VOICES: Record<Preset, AcousticVoice> = {
+  acousticSteel: {
+    driveMin: 0,
+    driveMax: 0.06,
+    bodyDb: 5,
+    presenceDb: 3,
+    dampening: 6200,
+    resonance: 0.991,
+    attackNoise: 1.2,
+    outputDb: 0,
+  },
+  acousticBright: {
+    driveMin: 0,
+    driveMax: 0.06,
+    bodyDb: 3,
+    presenceDb: 6,
+    dampening: 8000,
+    resonance: 0.992,
+    attackNoise: 1.6,
+    outputDb: -1,
+  },
+  nylon: {
+    driveMin: 0,
+    driveMax: 0.04,
+    bodyDb: 6,
+    presenceDb: 0,
+    dampening: 3200,
+    resonance: 0.986,
+    attackNoise: 0.6,
+    outputDb: 1,
+  },
 };
 
 export class GuitarSynth {
   private readonly strings: PluckSynth[];
-  private readonly twang;
+  private readonly body;
+  private readonly presence;
   private readonly vibrato;
   private readonly bend;
   private readonly amp;
@@ -48,8 +81,8 @@ export class GuitarSynth {
   private readonly reverb;
   private readonly master;
   private readonly clicker;
-  private ampVoice: AmpVoice = AMPS.teleClean;
-  private preset: Preset = "teleClean";
+  private voice: AcousticVoice = VOICES.acousticSteel;
+  private preset: Preset = "acousticSteel";
   private drive = -1;
 
   constructor(private readonly Tone: ToneNS) {
@@ -64,33 +97,44 @@ export class GuitarSynth {
       envelope: { attack: 0.001, decay: 0.03, sustain: 0, release: 0.01 },
       volume: -20,
     }).connect(limiter);
-    this.reverb = new Tone.Reverb({ decay: 1.8, preDelay: 0.012, wet: 0.2 }).connect(this.master);
-    this.tone = new Tone.Filter({ type: "lowpass", frequency: 8000, Q: 0.6 }).connect(this.reverb);
+    this.reverb = new Tone.Reverb({ decay: 1.6, preDelay: 0.01, wet: 0.18 }).connect(this.master);
+    this.tone = new Tone.Filter({ type: "lowpass", frequency: 9000, Q: 0.5 }).connect(this.reverb);
     this.output = new Tone.Gain(1).connect(this.tone);
-    this.comp = new Tone.Compressor({ threshold: -18, ratio: 3.5, attack: 0.008, release: 0.25 }).connect(this.output);
-    this.amp = new Tone.Distortion({ distortion: 0.02, oversample: "4x" }).connect(this.comp);
+    this.comp = new Tone.Compressor({ threshold: -20, ratio: 2.5, attack: 0.01, release: 0.3 }).connect(this.output);
+    this.amp = new Tone.Distortion({ distortion: 0, oversample: "4x" }).connect(this.comp);
     this.bend = new Tone.PitchShift({ pitch: 0, windowSize: 0.05, wet: 0 }).connect(this.amp);
     this.vibrato = new Tone.Vibrato({ frequency: 5.5, depth: 0 }).connect(this.bend);
 
-    // Bridge single-coil: tight low end, a bright bite around 3 kHz, smooth top.
-    const top = new Tone.Filter({ type: "lowpass", frequency: 9500, Q: 0.5 }).connect(this.vibrato);
-    this.twang = new Tone.Filter({ type: "peaking", frequency: 3100, Q: 1.2, gain: 5 }).connect(top);
-    const thin = new Tone.Filter({ type: "lowshelf", frequency: 220, gain: -4 }).connect(this.twang);
-    const tight = new Tone.Filter({ type: "highpass", frequency: 85, Q: 0.7 }).connect(thin);
+    // Acoustic body: the wooden box's low resonance, a little low-mid scoop so it
+    // isn't boxy, presence for the strings, and a soft top.
+    const top = new Tone.Filter({ type: "lowpass", frequency: 10000, Q: 0.5 }).connect(this.vibrato);
+    this.presence = new Tone.Filter({ type: "peaking", frequency: 2500, Q: 0.9, gain: 3 }).connect(top);
+    const scoop = new Tone.Filter({ type: "peaking", frequency: 450, Q: 1, gain: -2.5 }).connect(this.presence);
+    this.body = new Tone.Filter({ type: "peaking", frequency: 110, Q: 1.1, gain: 5 }).connect(scoop);
+    const rumble = new Tone.Filter({ type: "highpass", frequency: 60, Q: 0.7 }).connect(this.body);
 
-    // Bright, long-ringing steel strings.
+    // Long-ringing steel strings (nylon swaps these settings in setPreset).
     this.strings = Array.from({ length: STRINGS }, () =>
-      new Tone.PluckSynth({ attackNoise: 1.4, dampening: 8500, resonance: 0.992, release: 3 }).connect(tight),
+      new Tone.PluckSynth({
+        attackNoise: this.voice.attackNoise,
+        dampening: this.voice.dampening,
+        resonance: this.voice.resonance,
+        release: 3,
+      }).connect(rumble),
     );
   }
 
   setPreset(name: Preset): void {
     if (name === this.preset) return;
     this.preset = name;
-    this.ampVoice = AMPS[name];
-    this.twang.gain.rampTo(this.ampVoice.twangDb, 0.1);
-    this.comp.threshold.rampTo(this.ampVoice.compThreshold, 0.1);
-    this.output.gain.rampTo(this.Tone.dbToGain(this.ampVoice.outputDb), 0.1);
+    this.voice = VOICES[name];
+    this.body.gain.rampTo(this.voice.bodyDb, 0.1);
+    this.presence.gain.rampTo(this.voice.presenceDb, 0.1);
+    this.output.gain.rampTo(this.Tone.dbToGain(this.voice.outputDb), 0.1);
+    for (const s of this.strings) {
+      s.dampening = this.voice.dampening;
+      s.resonance = this.voice.resonance;
+    }
     this.drive = -1;
   }
 
@@ -102,7 +146,7 @@ export class GuitarSynth {
     const time = Tone.now() + delay;
     voice.volume.cancelScheduledValues(time);
     voice.volume.setValueAtTime(Tone.gainToDb(v) - 4, time);
-    voice.attackNoise = 0.8 + 1.8 * v; // harder picking = more pick click
+    voice.attackNoise = this.voice.attackNoise * (0.6 + 0.8 * v); // harder strumming = more pick/finger noise
     voice.triggerAttack(Tone.Frequency(midi, "midi").toFrequency(), time);
   }
 
@@ -150,7 +194,7 @@ export class GuitarSynth {
     this.bend.pitch = p.bend;
     this.bend.wet.rampTo(Math.abs(p.bend) > 0.05 ? 1 : 0, 0.03);
     // WaveShaper curves are rebuilt on change, so only update in coarse steps.
-    const { driveMin, driveMax } = this.ampVoice;
+    const { driveMin, driveMax } = this.voice;
     const drive = Math.round((driveMin + (driveMax - driveMin) * p.distortion) * 50) / 50;
     if (drive !== this.drive) {
       this.drive = drive;

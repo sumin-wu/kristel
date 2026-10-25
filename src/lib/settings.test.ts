@@ -31,8 +31,8 @@ describe("assignTarget", () => {
 });
 
 describe("parseSettings", () => {
-  it("old voice names fall back to the default Telecaster", () => {
-    expect(parseSettings({ preset: "overdriveLead" }).preset).toBe("teleClean");
+  it("old voice names fall back to the default acoustic", () => {
+    expect(parseSettings({ preset: "teleCrunch" }).preset).toBe("acousticSteel");
   });
 
   it("returns defaults for junk", () => {
@@ -41,8 +41,8 @@ describe("parseSettings", () => {
   });
 
   it("keeps valid fields and drops invalid ones", () => {
-    const s = parseSettings({ preset: "teleCrunch", scale: "lydian", key: 9, bendRange: 99, glideMs: "fast" });
-    expect(s.preset).toBe("teleCrunch");
+    const s = parseSettings({ preset: "nylon", scale: "lydian", key: 9, bendRange: 99, glideMs: "fast" });
+    expect(s.preset).toBe("nylon");
     expect(s.scale).toBe("minorPentatonic");
     expect(s.key).toBe(9);
     expect(s.bendRange).toBe(4);
@@ -61,7 +61,7 @@ describe("parseSettings", () => {
   });
 
   it("round-trips through JSON", () => {
-    const s = { ...DEFAULT_SETTINGS, preset: "teleTwang" as const, showDebug: false, guideSeen: true };
+    const s = { ...DEFAULT_SETTINGS, preset: "acousticBright" as const, showDebug: false, guideSeen: true };
     expect(parseSettings(JSON.parse(JSON.stringify(s)))).toEqual(s);
   });
 });
@@ -101,7 +101,7 @@ describe("calibrateThresholds", () => {
 });
 
 describe("chord sets", () => {
-  it("ships the two requested sets, Telecaster 9 active", () => {
+  it("ships the two requested sets, the 9-chord set active", () => {
     const [tele, song] = DEFAULT_SETTINGS.chordSets;
     expect(Object.values(tele.chords).sort()).toEqual(["A", "Am", "Bm", "C", "Cmaj7", "D", "Em", "F", "G"].sort());
     expect(Object.values(song.chords)).toEqual(["G", "B", "C", "Cm"]);
