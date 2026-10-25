@@ -94,12 +94,12 @@ async function openCamera(): Promise<MediaStream> {
 }
 
 /**
- * MediaPipe labels handedness as if the image were a mirrored selfie. We feed
- * it the raw (unmirrored) camera frame, so its labels are swapped relative to
- * the player's real hands.
+ * MediaPipe's handedness label for the raw (unmirrored) camera frame. Tested on
+ * a real webcam: the label already matches the player's actual hand, so it is
+ * used as-is (an earlier swap here put the octave on the wrong hand).
  */
 function playerHand(label: string | undefined): Handedness {
-  return label === "Left" ? "Right" : "Left";
+  return label === "Right" ? "Right" : "Left";
 }
 
 /**

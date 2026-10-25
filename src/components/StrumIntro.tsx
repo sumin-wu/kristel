@@ -1,13 +1,39 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Bangers } from "next/font/google";
 import { useRouter } from "next/navigation";
 import { STRUM_SPACING, preloadTone, startAudio } from "@/audio/toneEngine";
 import { requestCameraOnArrival } from "@/lib/cameraIntent";
 import { chordNotes } from "@/lib/chords";
 import { noteName } from "@/lib/pitch";
 import { stringAt, stringsCrossed } from "@/lib/strum";
+import { SpiderScene } from "./SpiderScene";
 import { vibrate } from "./vibrate";
+
+const comic = Bangers({ weight: "400", subsets: ["latin"], variable: "--font-comic" });
+
+const TITLE = "Happy Birthday KDAWG!";
+const SUBTITLE = "BIG 23 UNC!!!";
+
+/** Split into words of letters so each letter can pop in on its own (words never break mid-line). */
+function PopLetters({ text, startMs, stepMs }: { text: string; startMs: number; stepMs: number }) {
+  let i = 0;
+  return (
+    <>
+      {text.split(" ").map((word, w) => (
+        <span key={w} className="pop-word">
+          {[...word].map((ch) => (
+            <span key={i} className="pop-letter" style={{ animationDelay: `${startMs + i++ * stepMs}ms` }}>
+              {ch}
+            </span>
+          ))}
+          {w < text.split(" ").length - 1 && " "}
+        </span>
+      ))}
+    </>
+  );
+}
 
 // Open E minor chord (022000), low E drawn on top as when looking down at the guitar.
 const CHORD = chordNotes("Em");
@@ -96,16 +122,23 @@ export function StrumIntro() {
 
   return (
     <main
-      className={`intro${leaving ? " leaving" : ""}`}
+      className={`intro ${comic.variable}${leaving ? " leaving" : ""}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerEnd}
       onPointerCancel={onPointerEnd}
       onContextMenu={(e) => e.preventDefault()}
     >
+      <SpiderScene />
+
       <header className="intro-title">
-        <h1>FretSynth</h1>
-        <p>{leaving ? "Opening camera…" : "Strum the strings to begin"}</p>
+        <h1 aria-label={TITLE}>
+          <PopLetters text={TITLE} startMs={350} stepMs={45} />
+        </h1>
+        <p className="intro-big23" aria-label={SUBTITLE}>
+          {SUBTITLE}
+        </p>
+        <p className="intro-status">{leaving ? "Opening camera…" : "Strum the strings to begin"}</p>
       </header>
 
       <div className="intro-strings">
