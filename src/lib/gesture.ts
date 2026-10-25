@@ -136,51 +136,6 @@ export interface NoteTrigger {
   fingers: number[];
 }
 
-/**
- * Right hand: index/middle/ring/pinky = degrees 1–4, index + middle together = 5.
- * Index and middle rarely cross the threshold on the same camera frame, so a
- * lone index or middle start waits up to `chordWindowMs` for its partner.
- */
-export class RightHandNotes {
-  private pending: { finger: number; velocity: number; time: number } | null = null;
-
-  constructor(private readonly chordWindowMs = 60) {}
-
-  update(frame: PinchFrame, time: number): NoteTrigger[] {
-    const out: NoteTrigger[] = [];
-    const startedFingers = new Set(frame.started.map((s) => s.finger));
-
-    for (const s of frame.started) {
-      if (s.finger === RING || s.finger === PINKY) {
-        out.push({ degree: s.finger + 1, velocity: s.velocity, fingers: [s.finger] });
-        continue;
-      }
-      const partner = s.finger === INDEX ? MIDDLE : INDEX;
-      if (frame.pinched[partner] && !(startedFingers.has(partner) && s.finger === MIDDLE)) {
-        // Partner already held (or starting this same frame, handled once on the index pass).
-        const partnerVelocity = this.pending?.finger === partner ? this.pending.velocity : 0;
-        this.pending = null;
-        out.push({ degree: 5, velocity: Math.max(s.velocity, partnerVelocity), fingers: [INDEX, MIDDLE] });
-      } else if (!frame.pinched[partner]) {
-        this.pending = { finger: s.finger, velocity: s.velocity, time };
-      }
-    }
-
-    if (this.pending) {
-      const { finger, velocity } = this.pending;
-      if (!frame.pinched[finger]) {
-        // Released before the window ran out: still play it (a quick tap).
-        this.pending = null;
-        out.push({ degree: finger + 1, velocity, fingers: [finger] });
-      } else if (time - this.pending.time >= this.chordWindowMs) {
-        this.pending = null;
-        out.push({ degree: finger + 1, velocity, fingers: [finger] });
-      }
-    }
-    return out;
-  }
-}
-
 export interface LeadInput {
   triggers: NoteTrigger[];
   /** Right-hand pinch state this frame. */

@@ -7,15 +7,27 @@ import { TUNINGS, chordToMidi } from "./pitch";
 type Shape = readonly (number | null)[];
 
 const SHAPES = {
-  Em: [0, 2, 2, 0, 0, 0],
-  Cmaj7: [null, 3, 2, 0, 0, 0],
-  Gmaj7: [3, 2, 0, 0, 0, 2],
   C: [null, 3, 2, 0, 1, 0],
-  G: [3, 2, 0, 0, 0, 3],
+  Cm: [null, 3, 5, 5, 4, 3],
+  Cmaj7: [null, 3, 2, 0, 0, 0],
   D: [null, null, 0, 2, 3, 2],
-  // Four-string minor shapes a fret apart (landing page: Bm strums into Cm).
-  Bm: [null, null, 4, 4, 3, 2],
-  Cm: [null, null, 5, 5, 4, 3],
+  Dm: [null, null, 0, 2, 3, 1],
+  D7: [null, null, 0, 2, 1, 2],
+  E: [0, 2, 2, 1, 0, 0],
+  Em: [0, 2, 2, 0, 0, 0],
+  Em7: [0, 2, 2, 0, 3, 0],
+  E7: [0, 2, 0, 1, 0, 0],
+  F: [1, 3, 3, 2, 1, 1],
+  Fmaj7: [null, null, 3, 2, 1, 0],
+  G: [3, 2, 0, 0, 0, 3],
+  Gmaj7: [3, 2, 0, 0, 0, 2],
+  G7: [3, 2, 0, 0, 0, 1],
+  A: [null, 0, 2, 2, 2, 0],
+  Am: [null, 0, 2, 2, 1, 0],
+  Am7: [null, 0, 2, 0, 1, 0],
+  A7: [null, 0, 2, 0, 2, 0],
+  B: [null, 2, 4, 4, 4, 2],
+  Bm: [null, 2, 4, 4, 3, 2],
 } as const satisfies Record<string, Shape>;
 
 export type ChordName = keyof typeof SHAPES;
@@ -24,9 +36,21 @@ export function chordShape(name: ChordName): Shape {
   return SHAPES[name];
 }
 
+/** Every chord shape, in a sensible order for pickers. */
+export const CHORD_NAMES = Object.keys(SHAPES) as ChordName[];
+
+export function isChordName(v: unknown): v is ChordName {
+  return typeof v === "string" && Object.hasOwn(SHAPES, v);
+}
+
 /** Per-string notes (low E → high E), null for strings not played. */
 export function chordStrings(name: ChordName): (number | null)[] {
   return chordToMidi(TUNINGS.standard, SHAPES[name]);
+}
+
+/** Only the top `count` strings of a shape (the rest muted), e.g. a light four-string strum. */
+export function topStrings(name: ChordName, count: number): (number | null)[] {
+  return chordStrings(name).map((m, i) => (i < 6 - count ? null : m));
 }
 
 /** The chord's sounding notes, low → high (a downstroke strums them in this order). */

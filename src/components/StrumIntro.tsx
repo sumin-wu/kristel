@@ -5,7 +5,7 @@ import { Bangers } from "next/font/google";
 import { useRouter } from "next/navigation";
 import { STRUM_SPACING, preloadTone, startAudio } from "@/audio/toneEngine";
 import { requestCameraOnArrival } from "@/lib/cameraIntent";
-import { chordStrings, type ChordName } from "@/lib/chords";
+import { topStrings, type ChordName } from "@/lib/chords";
 import { noteName } from "@/lib/pitch";
 import { stringAt, stringsCrossed } from "@/lib/strum";
 import { SpiderScene } from "./SpiderScene";
@@ -100,7 +100,7 @@ export function StrumIntro() {
 
   /** Pluck string `s` of the current chord; muted strings (×) stay silent. */
   const pluck = (s: number, velocity: number) => {
-    const midi = chordStrings(chordRef.current)[s];
+    const midi = topStrings(chordRef.current, 4)[s];
     if (midi === null) return;
     startAudio()?.playString(midi, velocity, 0, s);
     vibrate(strings.current[s], 2 + velocity * 4, { duration: 1600 });
@@ -162,7 +162,7 @@ export function StrumIntro() {
       </header>
 
       <div className="intro-strings">
-        {chordStrings(chord).map((midi, s) => (
+        {topStrings(chord, 4).map((midi, s) => (
           <div key={s} className={`intro-row${midi === null ? " muted" : ""}`}>
             <span className="intro-label">{midi === null ? "×" : noteName(midi, { octave: false })}</span>
             <div

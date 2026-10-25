@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { calibrateThresholds } from "./calibration";
-import { DEFAULT_SETTINGS, assignTarget, parseSettings, pinchThresholds } from "./settings";
+import {
+  DEFAULT_SETTINGS,
+  SCALE_SET,
+  activeChordSet,
+  assignChord,
+  assignTarget,
+  parseSettings,
+  pinchThresholds,
+} from "./settings";
 
 describe("assignTarget", () => {
   it("reassigns a gesture to a free target", () => {
@@ -89,5 +97,39 @@ describe("calibrateThresholds", () => {
   it("fails when phases look the same or there are too few frames", () => {
     expect(calibrateThresholds(repeat(0.5), repeat(0.45))).toBeNull();
     expect(calibrateThresholds(repeat(0.9, 3), repeat(0.1, 3))).toBeNull();
+  });
+});
+
+describe("chord sets", () => {
+  it("ships the two requested sets, Telecaster 9 active", () => {
+    const [tele, song] = DEFAULT_SETTINGS.chordSets;
+    expect(Object.values(tele.chords).sort()).toEqual(["A", "Am", "Bm", "C", "Cmaj7", "D", "Em", "F", "G"].sort());
+    expect(Object.values(song.chords)).toEqual(["G", "B", "C", "Cm"]);
+    expect(activeChordSet(DEFAULT_SETTINGS)?.id).toBe("tele9");
+  });
+
+  it("scale mode has no fixed set", () => {
+    expect(activeChordSet({ ...DEFAULT_SETTINGS, activeSet: SCALE_SET })).toBeNull();
+  });
+
+  it("assigns and clears chords on slots without touching the input", () => {
+    const set = DEFAULT_SETTINGS.chordSets[1];
+    const moved = assignChord(assignChord(set, "MR", "G"), "I", null);
+    expect(moved.chords).toEqual({ M: "B", R: "C", P: "Cm", MR: "G" });
+    expect(set.chords.I).toBe("G");
+  });
+
+  it("keeps valid stored assignments and drops junk", () => {
+    const s = parseSettings({
+      activeSet: "song",
+      chordSets: [{ id: "song", chords: { I: "Em", M: "H#", ZZ: "C", IMRP: "Cmaj7" } }],
+    });
+    expect(s.activeSet).toBe("song");
+    expect(s.chordSets.find((x) => x.id === "song")?.chords).toEqual({ I: "Em", IMRP: "Cmaj7" });
+    expect(s.chordSets.find((x) => x.id === "tele9")?.chords).toEqual(DEFAULT_SETTINGS.chordSets[0].chords);
+  });
+
+  it("rejects an unknown active set", () => {
+    expect(parseSettings({ activeSet: "nope" }).activeSet).toBe("tele9");
   });
 });

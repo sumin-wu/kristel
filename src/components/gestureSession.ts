@@ -4,6 +4,7 @@
 import { getSynth } from "@/audio/toneEngine";
 import { CALIBRATION_MS, OPEN_PHASE_MS, calibrateThresholds } from "@/lib/calibration";
 import {
+  FistDetector,
   MAX_REVERB_WET,
   Smoothed,
   angleDelta,
@@ -20,16 +21,17 @@ import {
 import {
   HysteresisPinch,
   LeadController,
-  RightHandNotes,
   degreeToMidi,
   octaveFor,
+  type NoteTrigger,
   type PinchFrame,
 } from "@/lib/gesture";
+import { ComboDetector, slotDegree, slotFingers } from "@/lib/combos";
 import type { GuideEvent } from "@/lib/guide";
-import { chordLabel, diatonicTriad, strumVoicing } from "@/lib/chords";
+import { chordLabel, chordNotes, diatonicTriad, strumVoicing } from "@/lib/chords";
 import { pinchRatios } from "@/lib/pinch";
 import { noteName } from "@/lib/pitch";
-import { pinchThresholds, type PinchThresholds } from "@/lib/settings";
+import { activeChordSet, pinchThresholds, type PinchThresholds } from "@/lib/settings";
 import { settingsStore } from "@/lib/settingsStore";
 import { HAND_BONES, type HandFrame, type Handedness, type TrackedHand } from "@/vision/handTracker";
 import { ParticleTrails, filterHue } from "./particles";
@@ -62,7 +64,8 @@ export interface SessionStats {
 }
 
 export interface SessionCallbacks {
-  onNote: (name: string, octave: number) => void;
+  /** A note or chord was played: its name, and octave for single notes (null for chords). */
+  onNote: (name: string, octave: number | null) => void;
   /** Notes and glides as they're played (for the guide). */
   onPlay: (event: GuideEvent) => void;
   onStats: (stats: SessionStats) => void;
@@ -118,7 +121,10 @@ export class GestureSession {
     Left: new HysteresisPinch(),
     Right: new HysteresisPinch(),
   };
-  private readonly notes = new RightHandNotes();
+  private readonly combos = new ComboDetector();
+  private readonly fists: Record<Handedness, FistDetector> = { Left: new FistDetector(), Right: new FistDetector() };
+  private fistsClosed = false;
+  private muteFlash = -Infinity;
   private readonly lead = new LeadController();
   private readonly particles = new ParticleTrails();
   private readonly smoothed = {
@@ -207,72 +213,103 @@ export class GestureSession {
     );
     const roll = right ? rollAngle(right.image, frame.aspect) : null;
 
-    // Notes: pinch-start edges → lead note that sustains, slides and releases.
+    // Both fists clenched: stop everything ringing (and play nothing while clenched).
+    const leftFist = this.fists.Left.update(left ? handOpenness(left.world) : null);
+    const rightFist = this.fists.Right.update(right ? handOpenness(right.world) : null);
+    const bothFists = leftFist && rightFist;
+    if (bothFists && !this.fistsClosed) {
+      getSynth()?.muteAll();
+      this.muteFlash = time;
+    }
+    this.fistsClosed = bothFists;
+
     this.octave = octaveFor(frames.Left.pinched);
-    const triggers = this.notes.update(frames.Right, time);
-    const { actions, state } = this.lead.update({
-      triggers,
-      pinched: frames.Right.pinched,
-      x: right ? s.pinchX.value : null,
-      octave: this.octave,
-      scale: settings.scale,
-      key: settings.key,
-    });
+    const combos = bothFists ? [] : this.combos.update(frames.Right, time);
+    const set = activeChordSet(settings);
     const synth = getSynth();
-    /** Strum the scale chord on this note; faster pinches strum tighter and louder. */
-    const strum = (midi: number, velocity: number) => {
-      const pc = midi % 12;
-      const voicing = strumVoicing(pc, diatonicTriad(pc, settings.scale, settings.key), this.octave - 3);
-      synth?.strum(voicing, velocity, 0.06 - 0.03 * velocity);
-    };
-    /** Float the chord name up from the fingertip(s) that played it. */
-    const float = (midi: number, fingers: readonly number[]) => {
+
+    /** Float a chord name up from the fingertip(s) that played it. */
+    const float = (text: string, fingers: readonly number[]) => {
       if (!right) return;
-      const pc = midi % 12;
       const tips = fingers.length ? fingers.map((f) => FINGER_TIPS[f]) : [THUMB_TIP];
       const x = tips.reduce((sum, t) => sum + right.image[t].x, 0) / tips.length;
       const y = tips.reduce((sum, t) => sum + right.image[t].y, 0) / tips.length;
-      this.floating.push({
-        text: chordLabel(pc, diatonicTriad(pc, settings.scale, settings.key)),
-        x: x * this.canvas.width,
-        y: y * this.canvas.height,
-        start: time,
-      });
+      this.floating.push({ text, x: x * this.canvas.width, y: y * this.canvas.height, start: time });
     };
-    for (const action of actions) {
-      if (action.type === "on") {
+    const noteLatency = () => {
+      if (!synth) return;
+      const latency = performance.now() - frame.detectedAt + synth.outputLatencyMs();
+      this.latencyMs = this.latencyMs === null ? latency : this.latencyMs * 0.7 + latency * 0.3;
+    };
+    const flash = (fingers: readonly number[]) => {
+      for (const f of fingers) this.flashes.push({ handedness: "Right", finger: f, start: time });
+    };
+
+    if (set) {
+      // Chord-set mode: each finger combo strums the Telecaster chord assigned to it.
+      for (const combo of combos) {
+        const chord = set.chords[combo.slot];
+        if (!chord) continue;
+        const fingers = slotFingers(combo.slot);
+        const notes = chordNotes(chord).map((m) => m + 12 * (this.octave - 3));
         this.rollRef = roll;
         s.roll.value = 0;
-        if (!this.leadMuted) strum(action.midi, action.velocity); // else the guide plays its own chords
-        if (synth) {
-          const latency = performance.now() - frame.detectedAt + synth.outputLatencyMs();
-          this.latencyMs = this.latencyMs === null ? latency : this.latencyMs * 0.7 + latency * 0.3;
-        }
-        this.announce(action.midi);
-        float(action.midi, triggers.at(-1)?.fingers ?? []);
-        this.cb.onPlay({
-          type: "note",
-          degree: triggers.at(-1)?.degree ?? 1,
-          octave: this.octave,
-          midi: action.midi,
-        });
-        for (const t of triggers.at(-1)?.fingers ?? []) this.flashes.push({ handedness: "Right", finger: t, start: time });
-      } else if (action.type === "glide") {
-        if (!this.leadMuted) strum(action.midi, 0.6);
-        this.announce(action.midi);
-        float(action.midi, []);
-        float(action.midi, triggers.at(-1)?.fingers ?? []);
-        this.cb.onPlay({ type: "glide" });
-      } else {
-        // Strummed chords ring out on their own, like letting go of a real guitar.
-        this.rollRef = null;
+        if (!this.leadMuted) synth?.strum(notes, combo.velocity, 0.06 - 0.03 * combo.velocity);
+        noteLatency();
+        this.cb.onNote(chord, null);
+        float(chord, fingers);
+        flash(fingers);
+        this.cb.onPlay({ type: "note", degree: slotDegree(combo.slot) ?? 0, octave: this.octave, midi: notes[0] });
       }
+      this.holding = frames.Right.pinched.some(Boolean);
+      this.glideSteps = 0;
+      if (!this.holding) this.rollRef = null;
+    } else {
+      // Scale mode: index–pinky and index + middle are scale degrees; a held pinch slides.
+      const triggers: NoteTrigger[] = combos.flatMap((c) => {
+        const degree = slotDegree(c.slot);
+        return degree ? [{ degree, velocity: c.velocity, fingers: slotFingers(c.slot) }] : [];
+      });
+      const { actions, state } = this.lead.update({
+        triggers,
+        pinched: frames.Right.pinched,
+        x: right ? s.pinchX.value : null,
+        octave: this.octave,
+        scale: settings.scale,
+        key: settings.key,
+      });
+      /** Strum the scale chord on this note; faster pinches strum tighter and louder. */
+      const strum = (midi: number, velocity: number) => {
+        const pc = midi % 12;
+        const voicing = strumVoicing(pc, diatonicTriad(pc, settings.scale, settings.key), this.octave - 3);
+        synth?.strum(voicing, velocity, 0.06 - 0.03 * velocity);
+      };
+      const label = (midi: number) => chordLabel(midi % 12, diatonicTriad(midi % 12, settings.scale, settings.key));
+      for (const action of actions) {
+        if (action.type === "on") {
+          this.rollRef = roll;
+          s.roll.value = 0;
+          if (!this.leadMuted) strum(action.midi, action.velocity); // else the guide plays its own chords
+          noteLatency();
+          this.announce(action.midi);
+          const fingers = triggers.at(-1)?.fingers ?? [];
+          float(label(action.midi), fingers);
+          flash(fingers);
+          this.cb.onPlay({ type: "note", degree: triggers.at(-1)?.degree ?? 1, octave: this.octave, midi: action.midi });
+        } else if (action.type === "glide") {
+          if (!this.leadMuted) strum(action.midi, 0.6);
+          this.announce(action.midi);
+          float(label(action.midi), []);
+          this.cb.onPlay({ type: "glide" });
+        } else {
+          // Strummed chords ring out on their own, like letting go of a real guitar.
+          this.rollRef = null;
+        }
+      }
+      this.holding = state.holding;
+      this.glideSteps = state.steps;
     }
-    this.holding = state.holding;
-    this.glideSteps = state.steps;
-    s.roll.update(
-      state.holding && roll !== null && this.rollRef !== null ? rollUnit(angleDelta(roll, this.rollRef)) : 0,
-    );
+    s.roll.update(this.holding && roll !== null && this.rollRef !== null ? rollUnit(angleDelta(roll, this.rollRef)) : 0);
 
     const values: GestureValues = {
       height: s.height.value,
@@ -435,6 +472,27 @@ export class GestureSession {
 
     if (right) this.drawFingerLabels(ctx, right, pinched.Right, settings, r);
     this.drawFloating(ctx, time, w);
+    this.drawMuteFlash(ctx, time, w, h);
+  }
+
+  /** "STOP" stamped in the middle for a moment after both fists mute the strings. */
+  private drawMuteFlash(ctx: CanvasRenderingContext2D, time: number, w: number, h: number): void {
+    const t = (time - this.muteFlash) / 700;
+    if (t < 0 || t > 1) return;
+    const size = Math.max(40, w / 11) * (1.15 - 0.15 * Math.min(1, t * 4));
+    ctx.save();
+    ctx.globalAlpha = t < 0.6 ? 1 : 1 - (t - 0.6) / 0.4;
+    ctx.font = `900 ${size}px system-ui, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.translate(w / 2, h / 2);
+    ctx.scale(-1, 1);
+    ctx.lineWidth = size * 0.1;
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.8)";
+    ctx.strokeText("STOP", 0, 0);
+    ctx.fillStyle = "#ff2d4b";
+    ctx.fillText("STOP", 0, 0);
+    ctx.restore();
   }
 
   /** Small chord names above each right-hand fingertip: what that pinch will play. */
@@ -451,9 +509,15 @@ export class GestureSession {
     ctx.font = `700 ${size}px system-ui, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
+    const set = activeChordSet(settings);
     FINGER_TIPS.forEach((tip, f) => {
-      const pc = degreeToMidi(f + 1, this.octave, settings.scale, settings.key) % 12;
-      const text = chordLabel(pc, diatonicTriad(pc, settings.scale, settings.key));
+      let text: string;
+      if (set) {
+        text = set.chords[(["I", "M", "R", "P"] as const)[f]] ?? "–";
+      } else {
+        const pc = degreeToMidi(f + 1, this.octave, settings.scale, settings.key) % 12;
+        text = chordLabel(pc, diatonicTriad(pc, settings.scale, settings.key));
+      }
       const x = hand.image[tip].x * w;
       const y = hand.image[tip].y * h - r * 4.5;
       const on = !!pinched?.[f];

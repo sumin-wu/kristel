@@ -1608,3 +1608,38 @@ body {
   color: rgba(255, 255, 255, 0.6);
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8);
 }
+
+/* Chord-set table and helpers in the settings drawer. */
+.drawer-dim {
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.drawer-chords {
+  margin-top: 10px;
+}
+
+.drawer-chords thead th {
+  padding-bottom: 4px;
+  font-size: 11px;
+  opacity: 0.5;
+  text-align: left;
+}
+
+.drawer-chords tr.empty select {
+  opacity: 0.55;
+}
+
+.drawer-row-actions {
+  margin-top: 8px;
+}
+
+.drawer-row-actions button {
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: transparent;
+  color: #e8eaee;
+  font-size: 12px;
+}

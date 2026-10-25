@@ -1,7 +1,7 @@
 // Tone.js Telecaster-style guitar. No React in here.
 //
 //   6 string voices (Karplus-Strong) → pickup EQ (bridge single-coil) → vibrato → bend (pitch shift)
-//     → amp drive → compressor → tone (gesture lowpass) → spring-ish reverb → limiter → out
+//     → amp drive → compressor → tone (gesture lowpass) → spring-ish reverb → master → limiter → out
 //
 // Every sound in the app (landing strum, guide chords, pinches) goes through this one guitar.
 // Tone is loaded with a dynamic import so it never runs during server prerendering;
@@ -46,6 +46,7 @@ export class GuitarSynth {
   private readonly comp;
   private readonly tone;
   private readonly reverb;
+  private readonly master;
   private ampVoice: AmpVoice = AMPS.teleClean;
   private preset: Preset = "teleClean";
   private drive = -1;
@@ -55,7 +56,8 @@ export class GuitarSynth {
     Tone.getContext().lookAhead = 0;
 
     const limiter = new Tone.Limiter(-1).toDestination();
-    this.reverb = new Tone.Reverb({ decay: 1.8, preDelay: 0.012, wet: 0.2 }).connect(limiter);
+    this.master = new Tone.Gain(1).connect(limiter);
+    this.reverb = new Tone.Reverb({ decay: 1.8, preDelay: 0.012, wet: 0.2 }).connect(this.master);
     this.tone = new Tone.Filter({ type: "lowpass", frequency: 8000, Q: 0.6 }).connect(this.reverb);
     this.output = new Tone.Gain(1).connect(this.tone);
     this.comp = new Tone.Compressor({ threshold: -18, ratio: 3.5, attack: 0.008, release: 0.25 }).connect(this.output);
@@ -91,6 +93,7 @@ export class GuitarSynth {
     const v = Math.min(1, Math.max(0.05, velocity));
     const voice = this.strings[Math.min(STRINGS - 1, Math.max(0, string))];
     const time = Tone.now() + delay;
+    voice.volume.cancelScheduledValues(time);
     voice.volume.setValueAtTime(Tone.gainToDb(v) - 4, time);
     voice.attackNoise = 0.8 + 1.8 * v; // harder picking = more pick click
     voice.triggerAttack(Tone.Frequency(midi, "midi").toFrequency(), time);
@@ -106,6 +109,23 @@ export class GuitarSynth {
     midis.forEach((m, i) =>
       this.playString(m, velocity * (1 - i * 0.04), delay + i * spacing * (0.85 + Math.random() * 0.3), firstString + i),
     );
+  }
+
+  /**
+   * Stop everything ringing right now (palm-mute every string and cut the reverb
+   * tail), then open back up so the next strum sounds normally.
+   */
+  muteAll(): void {
+    const now = this.Tone.now();
+    for (const voice of this.strings) {
+      voice.volume.cancelScheduledValues(now);
+      voice.volume.rampTo(-80, 0.04, now);
+    }
+    this.master.gain.cancelScheduledValues(now);
+    this.master.gain.setValueAtTime(this.master.gain.value, now);
+    this.master.gain.linearRampToValueAtTime(0, now + 0.05);
+    this.master.gain.setValueAtTime(0, now + 0.3);
+    this.master.gain.linearRampToValueAtTime(1, now + 0.35);
   }
 
   /** Continuous parameters; call every frame with smoothed values. */

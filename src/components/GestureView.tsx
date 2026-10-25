@@ -14,7 +14,7 @@ import {
   type GuideState,
 } from "@/lib/guide";
 import { FINGER_NAMES } from "@/lib/pinch";
-import type { Settings } from "@/lib/settings";
+import { SCALE_SET, type Settings } from "@/lib/settings";
 import { settingsStore } from "@/lib/settingsStore";
 import { CameraError, startHandTracking, type Handedness } from "@/vision/handTracker";
 import { GestureSession, HAND_COLORS, type CalibrationPhase, type SessionStats } from "./gestureSession";
@@ -49,7 +49,9 @@ export function GestureView() {
 
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [stats, setStats] = useState<SessionStats>(EMPTY_STATS);
-  const [note, setNote] = useState<{ name: string; octave: number; key: number } | null>(null);
+  const [note, setNote] = useState<{ name: string; octave: number | null; key: number } | null>(null);
+  /** The chord set the player had before the guide switched to scale mode. */
+  const setBeforeGuide = useRef<string | null>(null);
   const [calibration, setCalibration] = useState<{ phase: CalibrationPhase; progress: number } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -82,8 +84,16 @@ export function GestureView() {
   };
 
   const closeGuide = () => {
-    settingsStore.update({ guideSeen: true });
+    settingsStore.update({ guideSeen: true, ...(setBeforeGuide.current ? { activeSet: setBeforeGuide.current } : {}) });
+    setBeforeGuide.current = null;
     setGuideState(null);
+  };
+
+  /** The guide teaches scale degrees, so it runs in scale mode and restores your set after. */
+  const startGuide = () => {
+    setBeforeGuide.current = settingsStore.get().activeSet;
+    settingsStore.update({ activeSet: SCALE_SET });
+    setGuideState(GUIDE_START);
   };
 
   const replaySong = () => {
@@ -234,7 +244,7 @@ export function GestureView() {
             {note ? (
               <span key={note.key} className="gesture-note-name">
                 {note.name}
-                <sub>{note.octave}</sub>
+                {note.octave !== null && <sub>{note.octave}</sub>}
               </span>
             ) : (
               !calibration && <span className="gesture-note-hint">Pinch with your right hand</span>
@@ -274,7 +284,7 @@ export function GestureView() {
       {running && !calibration && !settings.guideSeen && (
         <GuideOverlay
           state={guide ?? "intro"}
-          onStart={() => setGuideState(GUIDE_START)}
+          onStart={startGuide}
           onSkip={() => {
             sessionRef.current?.setLeadMuted(false);
             closeGuide();
@@ -293,7 +303,7 @@ export function GestureView() {
       {!running && (
         <div className="gesture-cover">
           <h1>Gesture synth</h1>
-          <p className="gesture-sub">Right hand plays the scale · left hand picks the octave</p>
+          <p className="gesture-sub">Right hand strums chords · left hand picks the octave · both fists stop</p>
           {status.kind === "error" && <p className="gesture-error">{status.message}</p>}
           <button type="button" onClick={onStartClick} disabled={status.kind === "starting"}>
             {status.kind === "starting" ? "Starting…" : status.kind === "error" ? "Try again" : "Start camera"}

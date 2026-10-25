@@ -1,5 +1,7 @@
 // Pure settings model for the gesture synth: defaults, validation, mapping rules.
 
+import { isChordName, type ChordName } from "./chords";
+import { SLOTS, type SlotId } from "./combos";
 import { KEY_E, SCALES, type ScaleName } from "./gesture";
 
 export const PRESETS = {
@@ -28,6 +30,29 @@ export type Target = keyof typeof TARGETS;
 
 export type Mapping = Record<Gesture, Target>;
 
+/** A named set of chords, each on a right-hand finger combo. */
+export interface ChordSet {
+  id: string;
+  name: string;
+  chords: Partial<Record<SlotId, ChordName>>;
+}
+
+/** Not a fixed set: chords built from the key and scale (used by the guide). */
+export const SCALE_SET = "scale";
+
+export const DEFAULT_CHORD_SETS: readonly ChordSet[] = [
+  {
+    id: "tele9",
+    name: "Telecaster 9",
+    chords: { I: "C", M: "Am", R: "A", P: "D", IM: "G", MR: "Em", RP: "F", IMR: "Bm", MRP: "Cmaj7" },
+  },
+  {
+    id: "song",
+    name: "Song: G B C Cm",
+    chords: { I: "G", M: "B", R: "C", P: "Cm" },
+  },
+];
+
 export interface PinchThresholds {
   start: number;
   release: number;
@@ -48,6 +73,10 @@ export interface Settings {
   /** Per-user thresholds from calibration; null until calibrated. */
   calibration: PinchThresholds | null;
   showDebug: boolean;
+  /** The two chord sets, with the player's own finger assignments. */
+  chordSets: ChordSet[];
+  /** Active set id, or SCALE_SET for key/scale chords. */
+  activeSet: string;
   /** The first-run guide has been finished or skipped. */
   guideSeen: boolean;
 }
@@ -70,6 +99,8 @@ export const DEFAULT_SETTINGS: Settings = {
   mapping: { height: "filter", roll: "bend", handDistance: "reverb", openness: "distortion" },
   calibration: null,
   showDebug: true,
+  chordSets: DEFAULT_CHORD_SETS.map((set) => ({ ...set, chords: { ...set.chords } })),
+  activeSet: "tele9",
   guideSeen: false,
 };
 
@@ -85,6 +116,19 @@ export function assignTarget(mapping: Mapping, gesture: Gesture, target: Target)
   }
   next[gesture] = target;
   return next;
+}
+
+/** Put `chord` on `slot` in a set (null clears the slot). Chords may repeat across slots. */
+export function assignChord(set: ChordSet, slot: SlotId, chord: ChordName | null): ChordSet {
+  const chords = { ...set.chords };
+  if (chord) chords[slot] = chord;
+  else delete chords[slot];
+  return { ...set, chords };
+}
+
+/** The active fixed chord set, or null in scale mode. */
+export function activeChordSet(settings: Settings): ChordSet | null {
+  return settings.chordSets.find((set) => set.id === settings.activeSet) ?? null;
 }
 
 /** Effective pinch thresholds: calibrated (or default) scaled by sensitivity. */
@@ -119,6 +163,24 @@ export function parseSettings(raw: unknown): Settings {
     for (const g of Object.keys(GESTURES) as Gesture[]) {
       if (oneOf(m[g], TARGETS)) s.mapping = assignTarget(s.mapping, g, m[g]);
     }
+  }
+
+  // Chord sets: keep the built-in sets, applying any valid stored slot → chord choices.
+  if (Array.isArray(r.chordSets)) {
+    const stored = r.chordSets as { id?: unknown; chords?: unknown }[];
+    s.chordSets = DEFAULT_CHORD_SETS.map((def) => {
+      const saved = stored.find((x) => x?.id === def.id);
+      if (!saved || typeof saved.chords !== "object" || saved.chords === null) return { ...def, chords: { ...def.chords } };
+      const chords: ChordSet["chords"] = {};
+      for (const { id } of SLOTS) {
+        const c = (saved.chords as Record<string, unknown>)[id];
+        if (isChordName(c)) chords[id] = c;
+      }
+      return { ...def, chords };
+    });
+  }
+  if (typeof r.activeSet === "string" && (r.activeSet === SCALE_SET || s.chordSets.some((x) => x.id === r.activeSet))) {
+    s.activeSet = r.activeSet;
   }
 
   const c = r.calibration as Record<string, unknown> | null | undefined;

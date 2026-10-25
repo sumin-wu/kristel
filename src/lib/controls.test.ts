@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  FistDetector,
   PARAM_DEFAULTS,
   Smoothed,
   resolveParams,
@@ -125,5 +126,29 @@ describe("resolveParams", () => {
     expect(p.vibrato).toBeCloseTo(0.5);
     expect(p.bend).toBeCloseTo(2);
     expect(p.cutoff).toBeCloseTo(200);
+  });
+});
+
+describe("FistDetector", () => {
+  const run = (d: FistDetector, xs: (number | null)[]) => xs.map((x) => d.update(x));
+
+  it("needs three closed frames to count as a fist", () => {
+    expect(run(new FistDetector(), [0.9, 0.9, 0.9])).toEqual([false, false, true]);
+  });
+
+  it("ignores a one-frame dip (e.g. passing through a pinch)", () => {
+    expect(run(new FistDetector(), [1.8, 0.9, 1.8, 0.9, 1.8])).toEqual([false, false, false, false, false]);
+  });
+
+  it("stays closed through the hysteresis band, opens above it", () => {
+    const d = new FistDetector();
+    run(d, [0.9, 0.9, 0.9]);
+    expect(run(d, [1.2, 1.3, 1.5, 1.5, 1.5])).toEqual([true, true, true, true, false]);
+  });
+
+  it("opens immediately when the hand is lost", () => {
+    const d = new FistDetector();
+    run(d, [0.9, 0.9, 0.9]);
+    expect(d.update(null)).toBe(false);
   });
 });

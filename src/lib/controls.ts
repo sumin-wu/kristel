@@ -152,3 +152,31 @@ export function resolveParams(values: GestureValues, mapping: Mapping, bendRange
   }
   return p;
 }
+
+/**
+ * A closed fist from hand openness (see handOpenness: fist ≈ 0.9, flat ≈ 2.0),
+ * with hysteresis and a few frames of confirmation so a passing pinch or a
+ * blurry frame doesn't count.
+ */
+export class FistDetector {
+  private closed = false;
+  private frames = 0;
+
+  constructor(
+    private readonly enter = 1.1,
+    private readonly exit = 1.35,
+    private readonly confirmFrames = 3,
+  ) {}
+
+  /** Feed openness (null = hand not seen). Returns whether the hand is a fist. */
+  update(openness: number | null): boolean {
+    const wants = openness === null ? false : this.closed ? openness < this.exit : openness < this.enter;
+    if (wants === this.closed) {
+      this.frames = 0;
+    } else if (++this.frames >= this.confirmFrames || openness === null) {
+      this.closed = wants;
+      this.frames = 0;
+    }
+    return this.closed;
+  }
+}

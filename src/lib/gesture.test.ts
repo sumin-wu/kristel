@@ -3,13 +3,11 @@ import { noteName } from "./pitch";
 import {
   HysteresisPinch,
   LeadController,
-  RightHandNotes,
   SCALES,
   scaleIndexToMidi,
   degreeToMidi,
   octaveFor,
   velocityFromSpeed,
-  type PinchFrame,
 } from "./gesture";
 
 const OPEN = 1.0;
@@ -90,59 +88,6 @@ describe("HysteresisPinch", () => {
     h.update(ratios({ 3: 0.1 }), 0);
     expect(h.update(null, 33).pinched).toEqual([false, false, false, false]);
     expect(h.update(ratios({ 3: 0.1 }), 66).started).toHaveLength(1);
-  });
-});
-
-describe("RightHandNotes", () => {
-  const frame = (pinched: number[], started: number[] = [], velocity = 0.7): PinchFrame => ({
-    pinched: [0, 1, 2, 3].map((f) => pinched.includes(f)),
-    started: started.map((finger) => ({ finger, velocity })),
-  });
-
-  it("ring and pinky play degrees 3 and 4 immediately", () => {
-    const n = new RightHandNotes();
-    expect(n.update(frame([2], [2]), 0)).toEqual([{ degree: 3, velocity: 0.7, fingers: [2] }]);
-    expect(n.update(frame([2, 3], [3]), 33)).toEqual([{ degree: 4, velocity: 0.7, fingers: [3] }]);
-  });
-
-  it("a lone index plays degree 1 once the chord window passes", () => {
-    const n = new RightHandNotes(60);
-    expect(n.update(frame([0], [0]), 0)).toEqual([]);
-    expect(n.update(frame([0]), 33)).toEqual([]);
-    expect(n.update(frame([0]), 66)).toEqual([{ degree: 1, velocity: 0.7, fingers: [0] }]);
-    expect(n.update(frame([0]), 99)).toEqual([]);
-  });
-
-  it("a lone middle plays degree 2", () => {
-    const n = new RightHandNotes(60);
-    n.update(frame([1], [1]), 0);
-    expect(n.update(frame([1]), 70)).toEqual([{ degree: 2, velocity: 0.7, fingers: [1] }]);
-  });
-
-  it("index + middle on the same frame plays degree 5 once", () => {
-    const n = new RightHandNotes();
-    expect(n.update(frame([0, 1], [0, 1]), 0)).toEqual([{ degree: 5, velocity: 0.7, fingers: [0, 1] }]);
-    expect(n.update(frame([0, 1]), 100)).toEqual([]);
-  });
-
-  it("index then middle within the window plays only degree 5", () => {
-    const n = new RightHandNotes(60);
-    expect(n.update(frame([0], [0], 0.4), 0)).toEqual([]);
-    expect(n.update(frame([0, 1], [1], 0.9), 33)).toEqual([{ degree: 5, velocity: 0.9, fingers: [0, 1] }]);
-    expect(n.update(frame([0, 1]), 100)).toEqual([]);
-  });
-
-  it("adding middle while index is already sounding plays degree 5", () => {
-    const n = new RightHandNotes(60);
-    n.update(frame([0], [0]), 0);
-    expect(n.update(frame([0]), 70)).toHaveLength(1);
-    expect(n.update(frame([0, 1], [1]), 300)).toEqual([{ degree: 5, velocity: 0.7, fingers: [0, 1] }]);
-  });
-
-  it("a quick index tap released inside the window still plays", () => {
-    const n = new RightHandNotes(60);
-    n.update(frame([0], [0]), 0);
-    expect(n.update(frame([]), 33)).toEqual([{ degree: 1, velocity: 0.7, fingers: [0] }]);
   });
 });
 

@@ -11,8 +11,11 @@ Touchscreen guitar synth for a guitarist playing with her fingers on a phone/tab
 - `/fretsynth` — earlier pinch-fret + touch-strip instrument (Karplus-Strong engine).
 
 ## Gesture synth mapping (/home)
-- Right hand plays: thumb pinch to index/middle/ring/pinky = scale degree 1–4,
-  index+middle together = 5. Pinch starts below 0.25 and releases above 0.35
+- Right hand plays chord sets (`src/lib/combos.ts`, Settings → Chord set): each
+  thumb + finger combo (13 slots) strums its assigned Telecaster chord.
+  Built-in sets: "Telecaster 9" (C Am A D G Em F Bm Cmaj7) and "Song" (G B C Cm);
+  "Scale" mode instead maps index…pinky = degrees 1–4, index+middle = 5 (the guide uses it).
+- Both fists clenched = stop all ringing strings (`FistDetector`, `muteAll()`). Pinch starts below 0.25 and releases above 0.35
   (or per-user calibrated thresholds, scaled by the sensitivity slider).
 - Left hand picks the octave: none = 3, index = 4, middle = 5.
 - Every sound is one Telecaster-style guitar (`src/audio/toneEngine.ts`, presets

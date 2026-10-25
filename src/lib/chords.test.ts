@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chordLabel, chordNotes, chordStrings, diatonicTriad, strumVoicing, type ChordName } from "./chords";
+import { CHORD_NAMES, chordLabel, chordNotes, diatonicTriad, strumVoicing, topStrings, type ChordName } from "./chords";
 import { noteName } from "./pitch";
 
 const pitchClasses = (name: ChordName) => [...new Set(chordNotes(name).map((m) => noteName(m, { octave: false })))].sort();
@@ -14,6 +14,19 @@ describe("chord voicings", () => {
     ["D", ["A", "D", "F#"]],
     ["Bm", ["B", "D", "F#"]],
     ["Cm", ["C", "D#", "G"]],
+    ["Am", ["A", "C", "E"]],
+    ["A", ["A", "C#", "E"]],
+    ["F", ["A", "C", "F"]],
+    ["B", ["B", "D#", "F#"]],
+    ["E", ["B", "E", "G#"]],
+    ["Dm", ["A", "D", "F"]],
+    ["Fmaj7", ["A", "C", "E", "F"]],
+    ["Am7", ["A", "C", "E", "G"]],
+    ["Em7", ["B", "D", "E", "G"]],
+    ["E7", ["B", "D", "E", "G#"]],
+    ["A7", ["A", "C#", "E", "G"]],
+    ["D7", ["A", "C", "D", "F#"]],
+    ["G7", ["B", "D", "F", "G"]],
   ] as const)("%s contains exactly its chord tones", (name, tones) => {
     expect(pitchClasses(name)).toEqual([...tones].sort());
   });
@@ -73,13 +86,28 @@ describe("strumVoicing", () => {
 });
 
 describe("Bm into Cm (landing page)", () => {
-  it("plays only the top four strings", () => {
-    expect(chordStrings("Bm").map((m) => (m === null ? "x" : noteName(m)))).toEqual(["x", "x", "F#3", "B3", "D4", "F#4"]);
-    expect(chordStrings("Cm").map((m) => (m === null ? "x" : noteName(m)))).toEqual(["x", "x", "G3", "C4", "D#4", "G4"]);
+  const show = (ms: (number | null)[]) => ms.map((m) => (m === null ? "x" : noteName(m)));
+
+  it("the landing plays only the top four strings", () => {
+    expect(show(topStrings("Bm", 4))).toEqual(["x", "x", "F#3", "B3", "D4", "F#4"]);
+    expect(show(topStrings("Cm", 4))).toEqual(["x", "x", "G3", "C4", "D#4", "G4"]);
   });
 
-  it("Cm is the same shape one fret up", () => {
+  it("Cm is the Bm barre shape one fret up", () => {
     expect(chordNotes("Cm")).toEqual(chordNotes("Bm").map((m) => m + 1));
+  });
+});
+
+describe("chord library", () => {
+  it("has every chord in the two default sets", () => {
+    for (const c of ["C", "Am", "A", "D", "G", "Em", "F", "Bm", "Cmaj7", "B", "Cm"]) expect(CHORD_NAMES).toContain(c);
+  });
+
+  it("every shape has the root as its lowest note", () => {
+    for (const name of CHORD_NAMES) {
+      const root = name.match(/^[A-G]#?/)![0];
+      expect(noteName(chordNotes(name)[0], { octave: false })).toBe(root);
+    }
   });
 });
 

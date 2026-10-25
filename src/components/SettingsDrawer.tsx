@@ -1,10 +1,16 @@
+import { CHORD_NAMES, type ChordName } from "@/lib/chords";
+import { SLOTS } from "@/lib/combos";
 import { SCALES, type ScaleName } from "@/lib/gesture";
 import { noteName } from "@/lib/pitch";
 import {
+  DEFAULT_CHORD_SETS,
   GESTURES,
   LIMITS,
   PRESETS,
+  SCALE_SET,
   TARGETS,
+  activeChordSet,
+  assignChord,
   assignTarget,
   type Gesture,
   type Preset,
@@ -56,6 +62,85 @@ function Slider({
   );
 }
 
+/** Switch chord sets, and choose which chord each finger combo plays. */
+function ChordSetSection({ settings, onChange }: { settings: Settings; onChange: (patch: Partial<Settings>) => void }) {
+  const set = activeChordSet(settings);
+  const updateSet = (next: typeof set) =>
+    next && onChange({ chordSets: settings.chordSets.map((x) => (x.id === next.id ? next : x)) });
+  const defaults = set && DEFAULT_CHORD_SETS.find((d) => d.id === set.id);
+
+  return (
+    <section>
+      <h2>Chord set</h2>
+      <div className="drawer-segmented" role="radiogroup" aria-label="Chord set">
+        {[...settings.chordSets.map((x) => ({ id: x.id, name: x.name })), { id: SCALE_SET, name: "Scale (key + scale)" }].map(
+          (opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              role="radio"
+              aria-checked={settings.activeSet === opt.id}
+              className={settings.activeSet === opt.id ? "on" : undefined}
+              onClick={() => onChange({ activeSet: opt.id })}
+            >
+              {opt.name}
+            </button>
+          ),
+        )}
+      </div>
+
+      {set ? (
+        <>
+          <table className="drawer-mapping drawer-chords">
+            <thead>
+              <tr>
+                <th scope="col">Thumb +</th>
+                <th scope="col">Chord</th>
+              </tr>
+            </thead>
+            <tbody>
+              {SLOTS.map((slot) => (
+                <tr key={slot.id} className={set.chords[slot.id] ? undefined : "empty"}>
+                  <th scope="row">{slot.label}</th>
+                  <td>
+                    <select
+                      aria-label={`Chord for thumb + ${slot.label}`}
+                      value={set.chords[slot.id] ?? ""}
+                      onChange={(e) => updateSet(assignChord(set, slot.id, (e.target.value || null) as ChordName | null))}
+                    >
+                      <option value="">—</option>
+                      {CHORD_NAMES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="drawer-row-actions">
+            <button
+              type="button"
+              className="quiet"
+              onClick={() => defaults && updateSet({ ...set, chords: { ...defaults.chords } })}
+            >
+              Reset this set
+            </button>
+          </div>
+          <p className="drawer-note">
+            Touch your right thumb to these fingers. Combos of fingers landing together count as one. Avoid &ldquo;All four&rdquo; —
+            it&apos;s close to a fist, and both fists stop the strings.
+          </p>
+        </>
+      ) : (
+        <p className="drawer-note">Chords come from the Key and Scale below. Index → pinky = degrees 1–4, index + middle = 5.</p>
+      )}
+    </section>
+  );
+}
+
 export function SettingsDrawer({
   open,
   settings,
@@ -79,6 +164,8 @@ export function SettingsDrawer({
       </button>
 
       <aside id="settings-drawer" className={`drawer${open ? " open" : ""}`} aria-hidden={!open} inert={!open}>
+        <ChordSetSection settings={settings} onChange={onChange} />
+
         <section>
           <h2>Voice</h2>
           <div className="drawer-segmented" role="radiogroup" aria-label="Voice preset">
@@ -98,7 +185,7 @@ export function SettingsDrawer({
         </section>
 
         <section>
-          <h2>Scale</h2>
+          <h2>Scale {settings.activeSet !== SCALE_SET && <span className="drawer-dim">(used in Scale mode)</span>}</h2>
           <div className="drawer-row">
             <label className="drawer-select">
               <span>Key</span>
