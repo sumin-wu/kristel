@@ -1405,3 +1405,12 @@ body {
     stroke-dashoffset: 0;
   }
 }
+
+/* Muted strings (×) on the landing chord. */
+.intro .intro-row.muted .string-line {
+  opacity: 0.35;
+}
+
+.intro .intro-row.muted .intro-label {
+  opacity: 0.7;
+}

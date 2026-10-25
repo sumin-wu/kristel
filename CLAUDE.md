@@ -5,7 +5,8 @@
 Touchscreen guitar synth for a guitarist playing with her fingers on a phone/tablet in landscape.
 
 ## Routes
-- `/` — landing: strum six strings (click-drag) to hear an Em chord, then it opens `/home`.
+- `/` — landing (birthday, spider theme): strum B minor on the top four strings
+  (xx4432; low E and A muted), it resolves into C minor (xx5543), then opens `/home`.
 - `/home` — two-hand camera gesture synth (Tone.js). Mapping below.
 - `/fretsynth` — earlier pinch-fret + touch-strip instrument (Karplus-Strong engine).
 

@@ -5,7 +5,7 @@ import { Bangers } from "next/font/google";
 import { useRouter } from "next/navigation";
 import { STRUM_SPACING, preloadTone, startAudio } from "@/audio/toneEngine";
 import { requestCameraOnArrival } from "@/lib/cameraIntent";
-import { chordNotes } from "@/lib/chords";
+import { chordStrings, type ChordName } from "@/lib/chords";
 import { noteName } from "@/lib/pitch";
 import { stringAt, stringsCrossed } from "@/lib/strum";
 import { SpiderScene } from "./SpiderScene";
@@ -35,10 +35,15 @@ function PopLetters({ text, startMs, stepMs }: { text: string; startMs: number; 
   );
 }
 
-// Open E minor chord (022000), low E drawn on top as when looking down at the guitar.
-const CHORD = chordNotes("Em");
+// Low E drawn on top, as when looking down at the guitar. You strum B minor on
+// the top four strings (xx4432); it then resolves up a fret into C minor (xx5543).
+const FIRST: ChordName = "Bm";
+const RESOLVE: ChordName = "Cm";
+const STRING_COUNT = 6;
 const HIT_TOLERANCE_PX = 12;
-const LEAVE_DELAY_MS = 1400;
+/** After you let go: when the Cm strum lands, and when we move on to the camera. */
+const RESOLVE_DELAY_MS = 450;
+const LEAVE_DELAY_MS = 2000;
 
 function strumVelocity(speedPxPerMs: number): number {
   return Math.min(1, Math.max(0.4, 0.45 + speedPxPerMs * 0.25));
@@ -51,6 +56,8 @@ export function StrumIntro() {
   const last = useRef(new Map<number, { y: number; t: number }>());
   const plucked = useRef(0);
   const [leaving, setLeaving] = useState(false);
+  const [chord, setChord] = useState<ChordName>(FIRST);
+  const chordRef = useRef<ChordName>(FIRST);
 
   useEffect(() => {
     void preloadTone();
@@ -62,6 +69,8 @@ export function StrumIntro() {
   useEffect(
     () => () => {
       plucked.current = 0;
+      chordRef.current = FIRST;
+      setChord(FIRST);
       setLeaving(false);
     },
     [],
@@ -70,19 +79,30 @@ export function StrumIntro() {
   const leave = () => {
     if (leaving) return;
     setLeaving(true);
+    // Strum into C minor, let it ring, then move on.
+    setTimeout(() => {
+      chordRef.current = RESOLVE;
+      setChord(RESOLVE);
+      strumChord(0.85);
+    }, RESOLVE_DELAY_MS);
     setTimeout(() => {
       requestCameraOnArrival();
       router.push("/home");
     }, LEAVE_DELAY_MS);
   };
 
-  /** Strum every string top to bottom (for a click that missed, or the Start button). */
-  const strumAll = (velocity = 0.8) => {
-    CHORD.forEach((_, s) => setTimeout(() => pluck(s, velocity), s * STRUM_SPACING * 1000));
+  /** Downstroke across the sounding strings of the current chord. */
+  const strumChord = (velocity = 0.8) => {
+    for (let s = 0; s < STRING_COUNT; s++) {
+      setTimeout(() => pluck(s, velocity), s * STRUM_SPACING * 1000);
+    }
   };
 
+  /** Pluck string `s` of the current chord; muted strings (×) stay silent. */
   const pluck = (s: number, velocity: number) => {
-    startAudio()?.playString(CHORD[s], velocity, 0, s);
+    const midi = chordStrings(chordRef.current)[s];
+    if (midi === null) return;
+    startAudio()?.playString(midi, velocity, 0, s);
     vibrate(strings.current[s], 2 + velocity * 4, { duration: 1600 });
     plucked.current++;
   };
@@ -115,8 +135,8 @@ export function StrumIntro() {
   const onPointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
     last.current.delete(e.pointerId);
     if (leaving || e.type === "pointercancel") return;
-    // A plain click/tap that crossed no string still counts: strum the whole chord.
-    if (plucked.current === 0) strumAll();
+    // A plain click/tap that crossed no string still counts: strum the chord.
+    if (plucked.current === 0) strumChord();
     leave();
   };
 
@@ -142,9 +162,9 @@ export function StrumIntro() {
       </header>
 
       <div className="intro-strings">
-        {CHORD.map((midi, s) => (
-          <div key={s} className="intro-row">
-            <span className="intro-label">{noteName(midi, { octave: false })}</span>
+        {chordStrings(chord).map((midi, s) => (
+          <div key={s} className={`intro-row${midi === null ? " muted" : ""}`}>
+            <span className="intro-label">{midi === null ? "×" : noteName(midi, { octave: false })}</span>
             <div
               className="string-line"
               style={{ "--gauge": `${4.2 - s * 0.55}px` } as React.CSSProperties}
@@ -168,7 +188,7 @@ export function StrumIntro() {
           onPointerUp={(e) => e.stopPropagation()}
           onClick={() => {
             startAudio();
-            strumAll();
+            strumChord();
             leave();
           }}
         >

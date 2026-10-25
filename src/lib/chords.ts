@@ -13,12 +13,20 @@ const SHAPES = {
   C: [null, 3, 2, 0, 1, 0],
   G: [3, 2, 0, 0, 0, 3],
   D: [null, null, 0, 2, 3, 2],
+  // Four-string minor shapes a fret apart (landing page: Bm strums into Cm).
+  Bm: [null, null, 4, 4, 3, 2],
+  Cm: [null, null, 5, 5, 4, 3],
 } as const satisfies Record<string, Shape>;
 
 export type ChordName = keyof typeof SHAPES;
 
 export function chordShape(name: ChordName): Shape {
   return SHAPES[name];
+}
+
+/** Per-string notes (low E → high E), null for strings not played. */
+export function chordStrings(name: ChordName): (number | null)[] {
+  return chordToMidi(TUNINGS.standard, SHAPES[name]);
 }
 
 /** The chord's sounding notes, low → high (a downstroke strums them in this order). */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chordNotes, diatonicTriad, strumVoicing, type ChordName } from "./chords";
+import { chordNotes, chordStrings, diatonicTriad, strumVoicing, type ChordName } from "./chords";
 import { noteName } from "./pitch";
 
 const pitchClasses = (name: ChordName) => [...new Set(chordNotes(name).map((m) => noteName(m, { octave: false })))].sort();
@@ -12,6 +12,8 @@ describe("chord voicings", () => {
     ["C", ["C", "E", "G"]],
     ["G", ["B", "D", "G"]],
     ["D", ["A", "D", "F#"]],
+    ["Bm", ["B", "D", "F#"]],
+    ["Cm", ["C", "D#", "G"]],
   ] as const)("%s contains exactly its chord tones", (name, tones) => {
     expect(pitchClasses(name)).toEqual([...tones].sort());
   });
@@ -67,5 +69,16 @@ describe("strumVoicing", () => {
 
   it("shifts by octaves", () => {
     expect(strumVoicing(4, { third: 3, fifth: 7 }, 1)).toEqual(chordNotes("Em").map((m) => m + 12));
+  });
+});
+
+describe("Bm into Cm (landing page)", () => {
+  it("plays only the top four strings", () => {
+    expect(chordStrings("Bm").map((m) => (m === null ? "x" : noteName(m)))).toEqual(["x", "x", "F#3", "B3", "D4", "F#4"]);
+    expect(chordStrings("Cm").map((m) => (m === null ? "x" : noteName(m)))).toEqual(["x", "x", "G3", "C4", "D#4", "G4"]);
+  });
+
+  it("Cm is the same shape one fret up", () => {
+    expect(chordNotes("Cm")).toEqual(chordNotes("Bm").map((m) => m + 1));
   });
 });
