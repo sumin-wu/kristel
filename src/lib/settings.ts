@@ -45,6 +45,8 @@ export interface ChordPlayerSettings {
   beatsPerChord: (typeof BEATS_PER_CHORD_OPTIONS)[number];
   /** Metronome click on every beat. */
   click: boolean;
+  /** Where the on-screen chord comes from: each lyric line's chord, or the tempo progression. */
+  follow: "lyrics" | "tempo";
 }
 
 /** Not a fixed set: chords built from the key and scale (used by the guide). */
@@ -114,7 +116,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showDebug: true,
   chordSets: DEFAULT_CHORD_SETS.map((set) => ({ ...set, chords: { ...set.chords } })),
   activeSet: "tele9",
-  chordPlayer: { progression: "Cmaj7 Gmaj7 C G D", bpm: 90, beatsPerChord: 4, click: false },
+  chordPlayer: { progression: "Cmaj7 Gmaj7 C G D", bpm: 90, beatsPerChord: 4, click: false, follow: "lyrics" },
   guideSeen: false,
 };
 
@@ -205,6 +207,7 @@ export function parseSettings(raw: unknown): Settings {
       s.chordPlayer.beatsPerChord = p.beatsPerChord as ChordPlayerSettings["beatsPerChord"];
     }
     if (typeof p.click === "boolean") s.chordPlayer.click = p.click;
+    if (p.follow === "lyrics" || p.follow === "tempo") s.chordPlayer.follow = p.follow;
   }
 
   const c = r.calibration as Record<string, unknown> | null | undefined;

@@ -1417,25 +1417,6 @@ body {
 
 /* ---------- Lyrics ---------- */
 
-.lyrics-toggle {
-  position: absolute;
-  top: calc(12px + env(safe-area-inset-top));
-  right: calc(120px + env(safe-area-inset-right));
-  z-index: 3;
-  padding: 7px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(7, 8, 10, 0.7);
-  color: #e8eaee;
-  font-size: 13px;
-  backdrop-filter: blur(8px);
-}
-
-.lyrics-toggle.open {
-  right: auto;
-  left: calc(min(360px, 88vw) + 12px);
-}
-
 .lyrics {
   position: absolute;
   top: 0;
@@ -1584,17 +1565,6 @@ body {
   text-decoration: underline;
 }
 
-.karaoke {
-  position: absolute;
-  top: calc(60px + env(safe-area-inset-top));
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1;
-  width: min(760px, calc(100% - 32px));
-  text-align: center;
-  pointer-events: none;
-}
-
 .karaoke-current {
   font-size: clamp(20px, 3.4vmin, 34px);
   font-weight: 800;
@@ -1716,33 +1686,6 @@ body {
   color: #fff;
 }
 
-.karaoke-chord {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.karaoke-chord-name {
-  padding: 2px 16px;
-  border-radius: 10px;
-  background: #ff2d4b;
-  color: #fff;
-  font-size: clamp(26px, 4.6vmin, 46px);
-  font-weight: 900;
-  letter-spacing: 0.02em;
-  box-shadow: 0 4px 20px rgba(255, 45, 75, 0.45);
-  animation: chord-pop 280ms ease-out;
-}
-
-.karaoke-chord-hint {
-  margin-top: 4px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #fff;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
-}
-
 @keyframes chord-pop {
   from {
     transform: scale(1.25);
@@ -1753,33 +1696,6 @@ body {
 }
 
 /* ---------- Chord play-along ---------- */
-
-.chords-toggle {
-  position: absolute;
-  top: calc(12px + env(safe-area-inset-top));
-  right: calc(222px + env(safe-area-inset-right));
-  z-index: 3;
-  padding: 7px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(7, 8, 10, 0.7);
-  color: #e8eaee;
-  font-size: 13px;
-  backdrop-filter: blur(8px);
-}
-
-.chords-toggle.open {
-  right: auto;
-  left: calc(min(360px, 88vw) + 12px);
-}
-
-.chords-drawer .lyrics-controls {
-  margin-top: 12px;
-}
-
-.chords-drawer .lyrics-controls button:disabled {
-  opacity: 0.4;
-}
 
 .chords-click {
   display: flex;
@@ -1882,37 +1798,6 @@ body {
   font-size: 12px;
 }
 
-.chord-strip {
-  position: absolute;
-  top: calc(60px + env(safe-area-inset-top));
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  pointer-events: none;
-}
-
-.chord-strip-name {
-  padding: 2px 18px;
-  border-radius: 12px;
-  background: #ff2d4b;
-  color: #fff;
-  font-size: clamp(30px, 5.4vmin, 54px);
-  font-weight: 900;
-  box-shadow: 0 4px 20px rgba(255, 45, 75, 0.45);
-  animation: chord-pop 280ms ease-out;
-}
-
-.chord-strip-hint {
-  font-size: 13px;
-  font-weight: 600;
-  color: #fff;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
-}
-
 .chord-beats {
   display: flex;
   gap: 6px;
@@ -1936,7 +1821,131 @@ body {
   transform: scale(1.3);
 }
 
-/* Both strips at once: lyrics sit under the chord play-along. */
-.gesture:has(.chord-strip) .karaoke {
-  top: calc(200px + env(safe-area-inset-top));
+
+/* ---------- Play-along (lyrics + chords in one panel) ---------- */
+
+.playalong-toggle {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  right: calc(120px + env(safe-area-inset-right));
+  z-index: 3;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(7, 8, 10, 0.7);
+  color: #e8eaee;
+  font-size: 13px;
+  backdrop-filter: blur(8px);
+}
+
+.playalong-toggle.open {
+  right: auto;
+  left: calc(min(360px, 88vw) + 12px);
+}
+
+.playalong .lyrics-controls {
+  margin-top: 10px;
+}
+
+.playalong .lyrics-controls button:disabled {
+  opacity: 0.4;
+}
+
+.playalong-follow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.playalong-follow > span {
+  white-space: nowrap;
+  opacity: 0.75;
+}
+
+.playalong-follow .drawer-segmented {
+  flex: 1;
+}
+
+.playalong-tabs {
+  display: flex;
+  gap: 18px;
+  margin-top: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.playalong-tabs button {
+  padding: 6px 0 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  color: #e8eaee;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.55;
+}
+
+.playalong-tabs button.on {
+  opacity: 1;
+  border-bottom-color: #ff2d4b;
+}
+
+.playalong-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.playalong .chords-click {
+  margin: 14px 0 0;
+}
+
+/* The on-screen card: chord on top, lyric lines under it. */
+.playalong-card {
+  position: absolute;
+  top: calc(60px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  width: min(760px, calc(100% - 32px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.playalong-chord {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.playalong-chord-name {
+  padding: 2px 18px;
+  border-radius: 12px;
+  background: #ff2d4b;
+  color: #fff;
+  font-size: clamp(30px, 5.4vmin, 54px);
+  font-weight: 900;
+  box-shadow: 0 4px 20px rgba(255, 45, 75, 0.45);
+  animation: chord-pop 280ms ease-out;
+}
+
+.playalong-chord-hint {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+}
+
+/* With the play-along drawer open, center the card in the space to its right. */
+.gesture:has(.playalong.open) .playalong-card {
+  left: calc(50% + min(360px, 88vw) / 2);
+  width: min(760px, calc(100% - min(360px, 88vw) - 32px));
 }

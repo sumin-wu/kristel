@@ -27,19 +27,13 @@ Touchscreen guitar synth for a guitarist playing with her fingers on a phone/tab
 - Settings persist to localStorage (`src/lib/settingsStore.ts`).
 - Right-hand fingertips show the chord each pinch plays; played chords float up
   from the fingertip (drawn on the mirrored canvas, so text is flipped back).
-- Lyrics drawer (`LyricsPanel`, `src/lib/lyrics.ts`): LRCLIB API, synced LRC with
-  a play clock and karaoke strip; never hardcode lyrics in the repo.
-- Chords with lyrics (`src/lib/chordTrack.ts`): one chord per lyric line, saved per
-  song in localStorage; "Fill lines" cycles a progression. The karaoke strip shows
-  the current chord, its finger combo in the active set, and the next change.
-  The lyrics clock has a playback speed (50–150%).
-- Chord play-along (`ChordPlayer`, `src/lib/chordPlayer.ts`): a looping progression
-  at a BPM with beats per chord, beat dots and an optional metronome click; changing
-  tempo keeps your place. Lyrics and Chords share the left side (one open at a time).
-- First visit shows a guide (Start/Skip, once; `guideSeen`): gestures, then the
-  chord roots of girl in red's "we fell in love in october" (Cmaj7 Gmaj7 C G D,
-  in G major); each correct pinch strums the full chord.
-- Chord voicings: fixed shapes and generated E/A-shape barres in `src/lib/chords.ts`.
+- Play-along panel (`src/components/playAlong/`): one drawer with a shared transport
+  and Lyrics / Chords tabs; one on-screen card shows the chord (+ finger combo, next
+  chord, beat dots) above the current lyric line. Lyrics come from LRCLIB (never
+  hardcode lyrics); each line can carry a chord (`src/lib/chordTrack.ts`, saved per
+  song); the lyrics clock has a speed. "Chords follow" picks the card's chord source:
+  the lyric lines, or a looping BPM progression (`src/lib/chordPlayer.ts`) with
+  beats per chord and an optional metronome click.
 
 ## FretSynth instrument mapping (/fretsynth)
 - Left 60%: front camera tracking her fretting hand. The thumb is the constant
@@ -63,7 +57,9 @@ Touchscreen guitar synth for a guitarist playing with her fingers on a phone/tab
 - src/audio/engine.ts: Web Audio engine, one voice per string. No React in here.
 - src/components/: UI components (CameraPanel, PluckStrips, TopBar, StrumIntro, GestureView, SettingsDrawer).
 - src/lib/gesture.ts, controls.ts, settings.ts, calibration.ts, strum.ts: pure gesture-synth logic. Unit tested.
-- src/audio/toneEngine.ts: Tone.js acoustic guitar (6 string voices → body EQ → vibrato → bend → warmth → tone → room reverb).
+- src/audio/toneEngine.ts: Tone.js acoustic guitar (6 strings × 2 alternating voices → body EQ → vibrato →
+  bend → tone → room reverb). A re-played string fades its previous note (~0.28 s) instead
+  of cutting it; bends below 0.3 st are ignored so wrist wobble never warbles the sound.
 - src/components/gestureSession.ts: per-frame glue (hands → notes/params → audio, canvas, HUD). No React state per frame.
 - src/app/*/page.tsx: thin route files composing components.
 

@@ -133,3 +133,30 @@ describe("chord sets", () => {
     expect(parseSettings({ activeSet: "nope" }).activeSet).toBe("tele9");
   });
 });
+
+describe("chord play-along settings", () => {
+  it("defaults to the song progression at 90 BPM, 4 beats per chord, following the lyrics", () => {
+    expect(DEFAULT_SETTINGS.chordPlayer).toEqual({
+      progression: "Cmaj7 Gmaj7 C G D",
+      bpm: 90,
+      beatsPerChord: 4,
+      click: false,
+      follow: "lyrics",
+    });
+  });
+
+  it("clamps tempo, rejects odd beat counts, and keeps a valid follow mode", () => {
+    const s = parseSettings({ chordPlayer: { progression: "G B C Cm", bpm: 999, beatsPerChord: 3, click: true, follow: "tempo" } });
+    expect(s.chordPlayer).toEqual({ progression: "G B C Cm", bpm: 200, beatsPerChord: 4, click: true, follow: "tempo" });
+  });
+
+  it("falls back to following the lyrics for an unknown mode", () => {
+    expect(parseSettings({ chordPlayer: { follow: "vibes" } }).chordPlayer.follow).toBe("lyrics");
+  });
+
+  it("doesn't share the default object between parses", () => {
+    const a = parseSettings({});
+    a.chordPlayer.bpm = 150;
+    expect(parseSettings({}).chordPlayer.bpm).toBe(90);
+  });
+});
